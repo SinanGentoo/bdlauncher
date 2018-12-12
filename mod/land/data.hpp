@@ -12,7 +12,7 @@ using std::unordered_map;
 #define min(a,b) (((a)<(b))?(a):(b))
 #define unlikely(cond) __glibc_unlikely(!!(cond))
 #define likely(cond) __glibc_likely(!!(cond))
-LDBImpl db("data/new/land");
+LDBImpl db("data_v2/land");
 enum LandPerm:char{
     PERM_NULL=0,
     PERM_OWNER=1,

@@ -70,12 +70,14 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
     if(a[0]=="a"){
         choose_state[nm]=1;
+        outp.success("enter choose mode A");
     }
     if(a[0]=="b"){
         choose_state[nm]=2;
+        outp.success("enter choose mod B");
     }
     if(a[0]=="query"){
-        auto pos=b.getEntity()->getPos();
+        auto& pos=b.getEntity()->getPos();
         int dim=b.getEntity()->getDimensionId();
         auto lp=getFastLand(pos.x,pos.z,dim);
         if(lp){
@@ -94,11 +96,16 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             outp.error("choose 2 points plz.");
             return;
         }
-	choose_state.erase(nm);
+	    choose_state.erase(nm);
         x=min(startpos[nm].x,endpos[nm].x);
         z=min(startpos[nm].z,endpos[nm].z);
         dx=max(startpos[nm].x,endpos[nm].x);
         dz=max(startpos[nm].z,endpos[nm].z);
+        //step -1 :sanitize pos
+        if(x < -200000 || z< -200000){
+            outp.error("pos too small!> -200000 needed");
+            return;
+        }
         //step 1 check money
         int deltax=dx-x+1,deltaz=dz-z+1;
         uint siz=deltax*deltaz;
@@ -133,7 +140,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         outp.success("okay");
     }
     if(a[0]=="sell"){
-        auto pos=b.getEntity()->getPos();
+        auto& pos=b.getEntity()->getPos();
         int dim=b.getEntity()->getDimensionId();
         auto lp=getFastLand(pos.x,pos.z,dim);
         if(lp && (lp->chkOwner(nm)==2||op)){
@@ -242,8 +249,13 @@ void CONVERT(char *b, int s)
         int x, y, dx, dy, dim;
         string owner;
         ds2 >> dim >> x >> y >> dx >> dy >> owner;
-        dx += x, dy += y;
+        dx=x+dx-1;dy=y+dy-1;
         dim >>= 4;
+        printf("land %d %d %d %d %d %s\n",x,y,dx,dy,dim,owner.c_str());
+        if(x< -200000 || y< -200000 || dx< -200000 || dy< -200000){
+            printf("refuse to add land %s\n",owner.c_str());
+            continue;
+        }
         addLand(to_lpos(x), to_lpos(dx), to_lpos(y), to_lpos(dy), dim, owner);
     }
 }
@@ -279,7 +291,7 @@ static int handle_dest(GameMode *a0, BlockPos const *a1)
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
         sprintf(buf, "this is %s's land", fl->owner);
-        sendText(sp, buf, JUKEBOX_POPUP);
+        sendText(sp, buf, POPUP);
         return 0;
     }
 }
@@ -305,7 +317,7 @@ static bool handle_attack(Actor &vi, ActorDamageSource const &src, int &val)
             char buf[1000];
             FastLand *fl = getFastLand(x, z, dim);
             sprintf(buf, "this is %s's land", fl->owner);
-            sendText(sp, buf, JUKEBOX_POPUP);
+            sendText(sp, buf, POPUP);
             return 0;
         }
     }
@@ -316,7 +328,7 @@ static bool handle_inter(GameMode *a0, Actor &a1)
     ServerPlayer *sp = a0->getPlayer();
     if (isOp(sp))
         return 1;
-    auto pos = a1.getPos();
+    auto& pos = a1.getPos();
     int x(pos.x), z(pos.z), dim(a1.getDimensionId());
     string name = sp->getName();
     if (likely(generic_perm(x, z, dim, PERM_INTERWITHACTOR, name)))
@@ -328,7 +340,7 @@ static bool handle_inter(GameMode *a0, Actor &a1)
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
         sprintf(buf, "this is %s's land", fl->owner);
-        sendText(sp, buf, JUKEBOX_POPUP);
+        sendText(sp, buf, POPUP);
         return 0;
     }
 }
@@ -347,7 +359,7 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
         {
             endpos[name] = {a2->x, a2->z};
             char buf[1000];
-            auto siz=abs(startpos[name].x-endpos[name].x)*abs(startpos[name].z-endpos[name].z);
+            auto siz=abs(startpos[name].x-endpos[name].x+1)*abs(startpos[name].z-endpos[name].z+1);
             sprintf(buf,"已选择点 B size %d price %d",siz,siz*LAND_PRICE);
             sendText(sp, buf);
         }
@@ -367,7 +379,7 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
         sprintf(buf, "this is %s's land", fl->owner);
-        sendText(sp, buf, JUKEBOX_POPUP);
+        sendText(sp, buf, POPUP);
         return 0;
     }
 }
@@ -386,7 +398,7 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
         sprintf(buf, "this is %s's land", fl->owner);
-        sendText(&sp, buf, JUKEBOX_POPUP);
+        sendText(&sp, buf, POPUP);
         return 0;
     }
 }

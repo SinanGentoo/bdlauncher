@@ -18,3 +18,5 @@
 /home gui GUI回家  
 /warp gui GUI Warp  
 /tpa gui GUI传送  
+配置文件  
+config/tp.json

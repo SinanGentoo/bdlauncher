@@ -61,9 +61,33 @@ class DataStream{
         c.packto(*this);
         return *this;
     }
+    template<typename T,typename T2>
+    DataStream& operator<<(unordered_map<T,T2> const & c){
+        operator<<((int)c.size());
+        for(auto& i:c){
+            operator<<(i.first);
+            operator<<(i.second);
+        }
+        return *this;
+    }
+    template<typename T,typename T2>
+    DataStream& operator>>(unordered_map<T,T2> & c){
+        int sz;
+        operator>>(sz);
+        c.reserve(sz);
+        for(int i=0;i<sz;++i){
+            T tmp;
+            T2 tmp2;
+            operator>>(tmp);
+            operator>>(tmp2);
+            c[tmp]=tmp2;
+        }
+        return *this;
+    }
     DataStream& operator>>(string& c){
         int sz;
         (*this)>>sz;
+        c.reserve(sz);
         c.assign(dat.data()+curpos,sz);
         curpos+=sz;
         return *this;
@@ -83,6 +107,7 @@ class DataStream{
     DataStream& operator>>(vector<T> & c){
         int size;
         (*this)>>size;
+        c.reserve(size);
         for(int i=0;i<size;++i){
             T tmp;
             (*this)>>tmp;

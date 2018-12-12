@@ -1,7 +1,7 @@
 # map.so
 <pre>
 /map filename
-手持地图输入/map 文件名，退出重进
+手持地图输入/map 文件名
 eg./map 0.bin
 
 img2bin: mod/map/img2bin.py

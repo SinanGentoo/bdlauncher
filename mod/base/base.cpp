@@ -253,10 +253,8 @@ void forceKickPlayer(ServerPlayer& sp){
 
 void mod_init(list<string>& modlist)
 {
-    mkdir("data",S_IRWXU);
-    mkdir("data/new",S_IRWXU);
-    printf("[MOD/BASE] loaded! V2019-12-11\n");  
-    srand(time(0));  	
+    mkdir("data_v2",S_IRWXU);
+    printf("[MOD/BASE] loaded! V2019-12-11\n");   	
     set_int_handler(fp(autostop));		
     load_helper(modlist);
 }

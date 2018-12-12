@@ -30,7 +30,7 @@ extern "C" {
 }
 
 extern void load_helper(std::list<string>& modlist);
-bool CanBack=true;
+bool CanBack=true,CanHome=true,CanTP=true;
 int MaxHomes=5;
 struct Vpos {
     int x,y,z,dim;
@@ -67,7 +67,7 @@ struct home {
 };
 static list<string> warp_list;
 static unordered_map<string,Vpos> warp;
-LDBImpl tp_db("data/new/tp");
+LDBImpl tp_db("data_v2/tp");
 void CONVERT_WARP(){
     char* buf;
     int siz;
@@ -85,6 +85,7 @@ void CONVERT_WARP(){
         DataStream tmpds;
         tmpds<<pos;
         tp_db.Put("warp_"+pos.name,tmpds.dat);
+        printf("warp %s found\n",pos.name.c_str());
         warps.emplace_back(pos.name);
     }
     DataStream tmpds;
@@ -98,17 +99,23 @@ void CONVERT_HOME(){
     file2mem("data/tp/tp.db",&buf,siz);
     int cnt;
     DataStream ds;
-    printf("sz %d\n",siz);
     ds.dat=string(buf,siz);
     ds>>cnt;
-     printf("sz %d\n",cnt);
+    printf("sz %d\n",cnt);
     for(int i=0;i<cnt;++i){
         string key;
         home hom;
         int homelen;
         ds>>key;
         ds>>homelen;
-        ds>>hom;
+        printf("key %s len %d\n",key.c_str(),homelen);
+        int homecnt;
+        ds>>homecnt;
+        hom.cnt=homecnt;
+        for(int j=0;j<homecnt;++j){
+            ds.curpos+=4; //skip sizeof(vpos)
+            ds>>hom.vals[j];
+        }
         DataStream tmpds;
         tmpds<<hom;
         tp_db.Put("home_"+key,tmpds.dat);
@@ -138,12 +145,11 @@ void load_warps_new(){
     DataStream ds;
     tp_db.Get("warps",ds.dat);
     ds>>warp_list;
-    ds.reset();
+    printf("%d warps found\n",warp_list.size());
     for(auto& i:warp_list){
-        tp_db.Get("warp_"+i,ds.dat);
-        Vpos tmp;
-        ds>>tmp;
-        warp[tmp.name]=tmp;
+        DataStream tmpds;
+        tp_db.Get("warp_"+i,tmpds.dat);
+        tmpds>>warp[i];
     }
 }
 unordered_map<string,home> home_cache;
@@ -165,7 +171,7 @@ home& getHome(const string& key){
 }
 void putHome(const string& key,home& hm){
     DataStream ds;
-    ds>>hm;
+    ds<<hm;
     tp_db.Put("home_"+key,ds.dat);
 }
 static void load() {
@@ -216,6 +222,10 @@ void sendTPChoose(ServerPlayer* sp,const string& type){
     });
 }
 static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+    if(!CanTP){
+        outp.error("tp not enabled on this server!");
+        return;
+    }
     int pl=(int)b.getPermissionsLevel();
     string name=b.getName();
     string dnm=a.size()==2?a[1]:"";
@@ -309,6 +319,10 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
 }
 
 static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+    if(!CanHome){
+        outp.error("home not enabled on this server!");
+        return;
+    }
     int pl=(int)b.getPermissionsLevel();
     string name=b.getName();
     string homen=a.size()==2?a[1]:"hape";
@@ -435,7 +449,7 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
 
 static unordered_map<string,pair<Vec3,int> > deathpoint;
 static void oncmd_back(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
-    if(!CanBack) {outp.error("not enabled on this server"); return;}
+    if(!CanBack) {outp.error("back not enabled on this server"); return;}
     auto it=deathpoint.find(b.getName());
     if(it==deathpoint.end()){
         outp.error("cant find deathpoint");
@@ -467,6 +481,8 @@ static void load_cfg(){
         exit(1);
     }
     CanBack=d["can_back"].GetBool();
+    CanHome=d["can_home"].GetBool();
+    CanTP=d["can_tp"].GetBool();
     MaxHomes=d["max_homes"].GetInt();
     free(buf);
 }
@@ -482,6 +498,5 @@ void mod_init(std::list<string>& modlist) {
     register_cmd("warp",(void*)oncmd_warp,"地标");
     register_cmd("back",(void*)oncmd_back,"back to deathpoint");
     reg_mobdie(handle_mobdie);
-    srand(time(0));
     load_helper(modlist);
 }

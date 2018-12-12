@@ -12,7 +12,7 @@ using namespace std;
 using namespace rapidjson;
 
 extern "C" {
-   BDL_EXPORT void chestShop_init(std::list<string>& modlist);
+   BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 struct Slot{
@@ -303,7 +303,7 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     }
     return 1;
 }
-void chestShop_init(std::list<string>& modlist){
+void mod_init(std::list<string>& modlist){
     load();
     reg_useitemon(handle_u);
     register_shutdown(fp(r_save));

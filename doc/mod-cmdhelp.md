@@ -2,6 +2,12 @@
 /c 打开预设命令列表  
 /reload_cmd 重载配置  
 <pre>
+/runas <玩家名> <指令>  
+例如 /runas steve "money query"  
+/sched <时间秒:int> <玩家名> <cmdchain>
+例如 /sched 5 Steve "say $name$ 114514"
+</pre>
+<pre>
 配置文件 cmd.json  
 [  
 {"type":"timer",  

@@ -1,5 +1,6 @@
 # bear.so
 服务器基础反作弊  
+包含隐身检查，物品封禁，部分限制  
 op：  
 /ban 名字 [seconds]  
 /ban sxc 100  
@@ -16,6 +17,7 @@ op：
 "FPushChest": true,  #限制推箱子（重启生效）  
 "FDestroyCheck": true,  #限制破坏方块速度  
 "FSpwanExp": true,  #限制客户端经验生成（会导致无法磨石得经验等）  
+"LogChest":true, #箱子日志  
 "banitems": [11], #禁止使用物品，逗号分割，填物品id  
  "warnitems": [12]} #记录使用物品，逗号分割，填物品id  
 

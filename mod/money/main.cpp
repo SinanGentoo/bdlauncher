@@ -24,7 +24,7 @@ extern "C" {
     BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-LDBImpl db("data/new/money");
+LDBImpl db("data_v2/money");
 static void DO_DATA_CONVERT(const char* buf,int sz){
     printf("size %d\n",sz);
     DataStream ds;
@@ -34,7 +34,7 @@ static void DO_DATA_CONVERT(const char* buf,int sz){
     for(int i=0;i<length;++i){
         string key,val;
         ds>>key>>val;
-        printf("key %s val %d\n",key.c_str(),val.size());
+        printf("key %s val %d\n",key.c_str(),access(val.data(),int,0));
         db.Put(key,val);
     }
 }

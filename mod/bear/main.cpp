@@ -39,7 +39,7 @@ extern "C" {
     BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-LDBImpl ban_data("data/new/bear");
+LDBImpl ban_data("data_v2/bear");
 bool isBanned(const string& name) {
     string val;
     auto succ=ban_data.Get(name,val);
@@ -139,13 +139,20 @@ unordered_set<short> banitems,warnitems;
 
 bool dbg_player;
 int LOG_CHEST;
+THook(void*,_ZN15ChestBlockActor9startOpenER6Player,BlockActor& ac,Player& pl){
+    if(LOG_CHEST){
+        auto& pos=ac.getPosition();
+        async_log("[CHEST] %s open chest pos: %d %d %d\n",pl.getName().c_str(),pos.x,pos.y,pos.z);
+    }
+    return original(ac,pl);
+}
 static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos const* dstPos,Block const* a5) {
     if(dbg_player){
         sendText(a0->getPlayer(),"you use id "+std::to_string(a1->getId()));
     }
-    if(LOG_CHEST && a5->getLegacyBlock()->getBlockItemId()==54){
+    /*if(LOG_CHEST && a5->getLegacyBlock()->getBlockItemId()==54){
         async_log("[CHEST] %s open chest pos: %d %d %d\n",a0->getPlayer()->getName().c_str(),a2->x,a2->y,a2->z);
-    }
+    }*/
     //printf("dbg use %s\n",a0->getPlayer()->getCarriedItem().toString().c_str());
     if(a0->getPlayer()->getPlayerPermissionLevel()>1) return 1;
     string sn=a0->getPlayer()->getName();
@@ -453,6 +460,17 @@ static void bangui_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOut
         if(sp)
             runcmdAs("ban \""+dst+"\"",sp);
     });
+}
+THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstance* mi){
+    if(mi->getId()==14){
+        auto sp=getSP(ac);
+        if(sp){
+            if(sp->getPlayerPermissionLevel()<=1){
+                async_log("[EFFECT] %s used self-hiding effect\n",sp->getName().c_str());
+            }
+        }
+    }
+    return original(ac,mi);
 }
 void mod_init(std::list<string>& modlist) {
     if(getenv("LOGCHEST")) LOG_CHEST=1;
