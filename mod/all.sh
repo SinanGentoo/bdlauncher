@@ -18,3 +18,4 @@ cd protect;sh cmp.sh;cd ..;
 cd vars;sh cmp.sh;cd ..;
 cd invcheck;sh cmp.sh;cd ..;
 cd map;sh cmp.sh;cd ..;
+cd wtf;sh cmp.sh;cd ..;
