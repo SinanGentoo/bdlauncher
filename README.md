@@ -3,7 +3,7 @@ A flexible , simple and easy-to-install third-party BedrockServer launcher with 
 !!!WARNING:1.14 only for testing
 <br>Only for Linux servers
 只支持Linux服务器<br>
-<br>
+telegram group https://t.me/bdlauncher
 <br>QQ group 955765957
 <br>
 # DOC:
