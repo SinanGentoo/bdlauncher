@@ -2,7 +2,7 @@
 
 #include "../core/types.h"
 
-#include "../../aux.h"
+#include "../../util.h"
 
 #include <memory>
 

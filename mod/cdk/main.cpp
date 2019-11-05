@@ -37,13 +37,13 @@ static void save();
 unordered_map<string,string> cdks;
 static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
-    if(!cdks.count(a[0])) {outp.error("wrong cdk");return;}
+    if(!cdks.count(a[0])) {outp.error("Invalid cdk");return;}
     auto run=cdks[a[0]];
     cdks.erase(a[0]);
     async_log("[CDK] %s uses CDK %s\n",b.getName().c_str(),a[0].c_str());
     execute_cmdchain(run,b.getName(),false);
     save();
-    outp.success("success");
+    outp.success("§bYou used cdk: a[0]");
 }
 using namespace rapidjson;
 static void load(){

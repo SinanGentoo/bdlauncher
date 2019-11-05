@@ -162,7 +162,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             outp.success("§bDeducted successfully");
                 auto dstp=getplayer_byname(dst);
                 if(dstp)
-                    sendText(dstp,"You used "+std::to_string(amo)+" money");
+                    sendText(dstp,"§bYou used "+std::to_string(amo)+" money");
         }
         else {
             outp.error("§bTarget player does not have enough money");
