@@ -143,7 +143,7 @@ void del_warp(const string& name){
 }
 void load_warps_new(){
     DataStream ds;
-    tp_db.Get("warps",ds.dat);
+    if(!tp_db.Get("warps",ds.dat)) return; //fix crash
     ds>>warp_list;
     printf("%d warps found\n",warp_list.size());
     for(auto& i:warp_list){

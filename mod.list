@@ -3,10 +3,12 @@ opti.so
 gui.so
 bear.so
 money.so
-land.so
-tp.so
+protect.so
+killbonus.so
+cmdhelp.so
+invcheck.so
+map.so
 cdk.so
 transfer.so
-cmdhelp.so
-killbonus.so
-protect.so
+tp.so
+land.so

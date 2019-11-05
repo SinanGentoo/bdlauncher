@@ -75,6 +75,7 @@ static ACmd* chelper(void* fn) {
 
 static void handle_regcmd(CommandRegistry& t) {
     for(auto const& i:reqs) {
+        //printf("reg %s %p\n",i.name.c_str(),i.fn);
         t.registerCommand(i.name,i.desc.c_str(),(CommandPermissionLevel)i.permlevel,(CommandFlag)0,(CommandFlag)0x40);
         t.registerOverload2(i.name.c_str(),wr_regcmd(fp(chelper),fp(i.fn)),CommandParameterData(type_id<CommandRegistry, CommandMessage>(), &CommandRegistry::parse<CommandMessage>, "operation", (CommandParameterDataType)0, nullptr, offsetof(ACmd, msg), false, -1));
     }

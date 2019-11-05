@@ -473,7 +473,6 @@ THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstanc
     return original(ac,mi);
 }
 void mod_init(std::list<string>& modlist) {
-    if(getenv("LOGCHEST")) LOG_CHEST=1;
     initlog();
     register_cmd("ban",fp(oncmd),"封禁玩家",1);
     register_cmd("unban",fp(oncmd2),"解除封禁",1);
