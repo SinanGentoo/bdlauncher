@@ -18,6 +18,7 @@
 #include<fstream>
 #include"../gui/gui.h"
 #include"../serial/seral.hpp"
+#include"lang.h"
 using std::string;
 using std::to_string;
 extern "C" {
@@ -100,7 +101,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             dst=b.getName();
         }
         char buf[1024];
-        sprintf(buf,"§e[Money system] %s 的余额为 %d",dst.c_str(),get_money(dst));
+        sprintf(buf,M_QUERY_STR,dst.c_str(),get_money(dst));
         outp.addMessage(string(buf));
         outp.success();
         return;
@@ -119,7 +120,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         }
         set_money(dst,amo);
         char buf[1024];
-        sprintf(buf,"§e[Money system] 成功将 %s 的余额设置为 %d",dst.c_str(),get_money(dst));
+        sprintf(buf,M_SET_STR,dst.c_str(),get_money(dst));
         outp.success(string(buf));
     }
     if(a[0]=="add") {
@@ -173,7 +174,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         pl2=a[1];
         mon=atoi(a[2].c_str());
         if(mon<=0||mon>50000) {
-            outp.error("[Money system] 输入数值过大或过小(最大转账数50000，更大请分次转)");
+            outp.error(M_PAY_STR);
         } else {
             if(red_money(pl,mon)) {
                 add_money(pl2,mon);
@@ -207,7 +208,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
 }
 
 void mod_init(std::list<string>& modlist) {
-    printf("[MONEY] loaded! V2019-12-11\n");
+    printf("[MONEY] loaded! V2019-12-14\n");
     load();
     loadcfg();
     register_cmd("money",(void*)oncmd,"经济系统");

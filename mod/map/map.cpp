@@ -55,7 +55,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     outp.success("okay!rejoin server to see new map");
 }
 void mod_init(std::list<string>& modlist) {
-    printf("[CustomMap] loaded!\n");
+    printf("[CustomMap] loaded! V2019-12-14\n");
     register_cmd("map",(void*)oncmd,"CustomMap",1);
     load_helper(modlist);
 }

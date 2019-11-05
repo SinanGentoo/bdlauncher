@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include"lang.h"
 using std::string;
 using std::unordered_map;
 using std::unordered_set;
@@ -102,8 +104,7 @@ THook(void*,_ZN20ServerNetworkHandler22_onClientAuthenticatedERK17NetworkIdentif
         ban_data.Put(xuid,pn);
     }
     if(isBanned(pn) || (succ && isBanned(val))) {
-        string ban("§c你在当前服务器的黑名单内!");
-        getMC()->getNetEventCallback()->disconnectClient(a,ban,false);
+        getMC()->getNetEventCallback()->disconnectClient(a,YOU_R_BANNED,false);
         return nullptr;
     }
     return original(t,a,b);
@@ -344,7 +345,7 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
         }
         if(banitems.count(j.getFromItem()->getId()) || banitems.count(j.getToItem()->getId())){
             async_log("[ITEM] %s 使用高危物品(banned) %s %s\n",name.c_str(),j.getFromItem()->toString().c_str(),j.getToItem()->toString().c_str());
-            sendText(&player,"§c无法使用违禁物品",JUKEBOX_POPUP);
+            sendText(&player,BANNED_ITEM,POPUP);
             return 6;
         }
         /*
@@ -474,18 +475,18 @@ THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstanc
 }
 void mod_init(std::list<string>& modlist) {
     initlog();
-    register_cmd("ban",fp(oncmd),"封禁玩家",1);
-    register_cmd("unban",fp(oncmd2),"解除封禁",1);
+    register_cmd("ban",fp(oncmd),"Ban player",1);
+    register_cmd("unban",fp(oncmd2),"unban player",1);
     register_cmd("reload_bear",fp(load_config),"Reload Configs for antibear",1);
-    register_cmd("bear_dbg",fp(toggle_dbg),"toggle debug item",1);
+    register_cmd("bear_dbg",fp(toggle_dbg),"toggle item id debug",1);
     register_cmd("skick",fp(kick_cmd),"force kick",1);
-    register_cmd("bangui",fp(bangui_cmd),"封禁玩家GUI",1);
+    register_cmd("bangui",fp(bangui_cmd),"gui for ban",1);
     reg_useitemon(handle_u);
     reg_player_left(handle_left);
     reg_chat(hkc);
     load_config();
     if(getenv("LOGNET")) rori=(typeof(rori))(MyHook(fp(recvfrom),fp(recvfrom_hook)));
-    printf("[ANTI-BEAR] Loaded V2019-12-11\n");
+    printf("[ANTI-BEAR] Loaded V2019-12-14\n");
     load_helper(modlist);
 }
 

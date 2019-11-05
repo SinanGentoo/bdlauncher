@@ -193,6 +193,6 @@ THook(__int64,_ZN4Core6Random13_genRandInt32Ev,void *thi)
 
 void mod_init(std::list<string>& modlist) {
     load();
-    printf("[OPTI] loaded! V2019-12-11\n");
+    printf("[OPTI] loaded! V2019-12-14\n");
     load_helper(modlist);
 }

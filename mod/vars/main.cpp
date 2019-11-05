@@ -113,6 +113,6 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
 }
 void mod_init(std::list<string>& modlist){
     register_cmd("var",fp(oncmd),"manage player vars");
-    printf("[Vars] loaded! V2019-12-11\n");
+    printf("[Vars] loaded! V2019-12-14\n");
     load_helper(modlist);
 }

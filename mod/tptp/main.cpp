@@ -488,7 +488,7 @@ static void load_cfg(){
 }
 
 void mod_init(std::list<string>& modlist) {
-    printf("[TPs] loaded! V2019-12-11\n");
+    printf("[TPs] loaded! V2019-12-14\n");
     load();
     load_warps_new();
     load_cfg();

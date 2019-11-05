@@ -22,6 +22,9 @@ struct LDBImpl
         leveldb::Options options;
         options.create_if_missing = true;
         leveldb::Status status = leveldb::DB::Open(options, name, &db);
+        if(!status.ok()){
+            printf("[DB ERROR] cannot load %s reason: %s\n",name,status.ToString().c_str());
+        }
         assert(status.ok());
     }
     ~LDBImpl()

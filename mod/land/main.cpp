@@ -93,7 +93,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int x,z,dx,dz;
         int dim=b.getEntity()->getDimensionId();
         if(startpos.count(nm)+endpos.count(nm)!=2){
-            outp.error("choose 2 points plz.");
+            outp.error("choose 2 points please.");
             return;
         }
 	    choose_state.erase(nm);
@@ -404,7 +404,7 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
 }
 void mod_init(std::list<string> &modlist)
 {
-    printf("[LAND] loaded! V2019-12-11\n");
+    printf("[LAND] loaded! V2019-12-14\n");
     load();
     loadcfg();
     init_cache();

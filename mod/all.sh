@@ -1,6 +1,6 @@
 export BDL_CXX="g++"
 export BDL_CXXFLAG=" -O3 "
-#export BDL_ADDLINK="../libleveldb.a"
+export BDL_ADDLINK="../libleveldb.a"
 cd base;sh cmp.sh;cd ..;
 cd opti;sh cmp.sh;cd ..;
 cd bear;sh cmp.sh;cd ..;
