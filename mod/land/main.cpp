@@ -131,7 +131,8 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         {
             auto lp=getFastLand(i,j,dim);
             if(lp){
-                outp.error("Land collision detected!");
+                printf("lp %p\n",lp);
+                outp.error("Land collision detected! hint: "+string(lp->owner,lp->owner_sz)+"'s land");
                 return;
             }
         }
@@ -145,6 +146,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         auto& pos=b.getEntity()->getPos();
         int dim=b.getEntity()->getDimensionId();
         auto lp=getFastLand(pos.x,pos.z,dim);
+        printf("dim %d\n",dim);
         if(lp && (lp->chkOwner(nm)==2||op)){
             int siz=(lp->dx-lp->x)*(lp->dz-lp->z);
             add_money(nm,siz*LAND_PRICE2);

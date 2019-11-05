@@ -23,6 +23,7 @@ enum LandPerm:char{
     PERM_INTERWITHACTOR=32
 };
 typedef unsigned int lpos_t;
+#pragma pack(1)
 struct FastLand{
     lpos_t x,z,dx,dz;
     uint lid;
@@ -53,10 +54,14 @@ struct FastLand{
         return sizeof(FastLand)+owner_sz+1;
     }
 };
+#pragma pack(8)
 static_assert(sizeof(FastLand)==28);
+static_assert(offsetof(FastLand,dim)==22);
+static_assert(offsetof(FastLand,refcount)==20);
 struct DataLand{
     lpos_t x,z,dx,dz;
     uint lid;
+    short refcount;
     char dim;
     LandPerm perm;
     string owner;
@@ -83,11 +88,13 @@ struct DataLand{
     }
 };
 static_assert(sizeof(DataLand)==24+sizeof(string));
+static_assert(offsetof(DataLand,dim)==22);
 struct LandCacheManager{
     unordered_map<int,FastLand*> cache;
     void noticeFree(FastLand* fl){
+        //printf("notice free %d rcnt %d\n",fl->lid,fl->refcount);
         fl->refcount--;
-        if(fl->refcount==0){
+        if(fl->refcount<=0){
             cache.erase(fl->lid);
             delete fl;
         }
@@ -100,13 +107,15 @@ struct LandCacheManager{
             string landstr;
             db.Get("l_"+string((char*)&id,4),landstr);
             res=(FastLand*)malloc(landstr.size()+1);
-            *(char*)(((uintptr_t)res)+landstr.size())=0;
             memcpy(res,landstr.data(),landstr.size());
+            res->owner[res->owner_sz]=0;
+            res->refcount=0;
             cache[id]=res;
         }else{
             res=it->second;
         }
         res->refcount++;
+        //printf("req %d rcnt %d lp %p\n",id,res->refcount,res);
         return res;
     }
 } LCMan;
@@ -232,7 +241,7 @@ void proc_chunk_add(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
     buf[8]=dim;
     for(int i=x;i<=dx;++i){
         for(int j=z;j<=dz;++j){
-            //printf("proc add %d %d %u\n",x,z,lid);
+            //printf("proc add %d %d %d\n",i,j,dim);
             memcpy(buf,&i,4);
             memcpy(buf+4,&j,4);
             string key(buf,9);
@@ -256,10 +265,13 @@ void proc_chunk_del(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
             memcpy(buf,&i,4);
             memcpy(buf+4,&j,4);
             string key(buf,9);
+            //printf("proc del %d %d %d\n",i,j,dim);
             string val;
             db.Get(key,val);
+            //printf("size %d access %u\n",val.size(),access(val.data(),uint,0));
             for(int i=0;i<val.size();i+=4){
                 if(access(val.data(),uint,i)==lid){
+                    //printf("erase %d\n",i);
                     val.erase(i,4);
                     break;
                 }
@@ -294,7 +306,7 @@ void updLand(DataLand& ld){
 void removeLand(FastLand* land){
     string key="l_"+string((char*)&(land->lid),4);
     db.Del(key);
-    proc_chunk_del(land->x,land->dx,land->z,land->dz,land->dim,land->lid);
+    proc_chunk_del(land->x,land->dx,land->z,land->dz,land->dim,land->lid); //BUG HERE
     purge_cache();
 }
 void Fland2Dland(FastLand* ld,DataLand& d){

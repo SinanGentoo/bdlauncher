@@ -89,3 +89,4 @@ static inline bool isOp(CommandOrigin const &sp)
     return (int)sp.getPermissionsLevel() > 0;
 }
 
+
