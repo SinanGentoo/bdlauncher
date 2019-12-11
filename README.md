@@ -1,5 +1,6 @@
 # bdlauncher
-A flexible , simple and easy-to-install third-party BedrockServer launcher with mods support (1.13.x only)
+A flexible , simple and easy-to-install third-party BedrockServer launcher with mods support (1.14 testing or 1.13.x)  
+!!!WARNING:1.14 only for testing
 <br>Only for Linux servers
 只支持Linux服务器<br>
 <br>
