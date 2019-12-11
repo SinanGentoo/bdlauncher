@@ -1,10 +1,8 @@
 # land.so
-!!!为了保护领地，领地会禁止全服耕地被踩坏  
 
-/land start 进入起点模式,点地选点  
-/land end 进入终点模式，点地选点  
+/land a 进入起点模式,点地选点  
+/land b 进入终点模式，点地选点  
 /land exit 退出选点模式  
-/land prebuy 计算选中区域价格  
 /land buy 选点之后买地  
 
 /land trust 人名 添加主人  
@@ -13,7 +11,10 @@
 
 /land untrust 人名 删除主人  
 /land sell 卖地（op可以强行卖）  
-/land query 查看当前领地主人  
+/land query 查看当前领地主人 
+/land give 人名 转让权限 
+
+# 下面的有问题
 /land perm 数字 指定领地具体权限  
 1 = 破坏  
 2 = 空手使用  

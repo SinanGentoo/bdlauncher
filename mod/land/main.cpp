@@ -94,6 +94,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             outp.error("choose 2 points plz.");
             return;
         }
+	choose_state.erase(nm);
         x=min(startpos[nm].x,endpos[nm].x);
         z=min(startpos[nm].z,endpos[nm].z);
         dx=max(startpos[nm].x,endpos[nm].x);
