@@ -4,13 +4,14 @@
 #include"rapidjson/document.h"
 #include"rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include"../serial/seral.hpp"
 #include<fstream>
 #include<cstdarg>
 
 using namespace std;
 
 extern "C" {
-   BDL_EXPORT void cdk_init(std::list<string>& modlist);
+   BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 
@@ -22,12 +23,12 @@ static void initlog() {
     logsz=lseek(logfd,0,SEEK_END);
 }
 static void async_log(const char* fmt,...) {
-    char buf[10240];
+    char buf[1024];
     auto x=time(0);
     va_list vl;
     va_start(vl,fmt);
     auto tim=strftime(buf,128,"[%Y-%m-%d %H:%M:%S] ",localtime(&x));
-    int s=vsprintf(buf+tim,fmt,vl)+tim;
+    int s=vsnprintf(buf+tim,900,fmt,vl)+tim;
     write(1,buf,s);
     write(logfd,buf,s);
     va_end(vl);
@@ -45,14 +46,12 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     outp.success("success");
 }
 using namespace rapidjson;
-char buf[1024*1024*2];
 static void load(){
     cdks.clear();
     Document dc;
-    ifstream ff;
-    ff.open("config/cdk.json",ios::in);
-    buf[ff.readsome(buf,1024*1024*2)]=0;
-    ff.close();
+    char* buf;
+    int sz;
+    file2mem("config/cdk.json",&buf,sz);
     if(dc.ParseInsitu(buf).HasParseError()){
         printf("[CDK] Config JSON ERROR!\n");
         exit(1);
@@ -60,6 +59,7 @@ static void load(){
     for(auto& i:dc.GetObject()){
         cdks.emplace(i.name.GetString(),i.value.GetString());
     }
+    free(buf);
 }
 static void save(){
     Document dc;
@@ -78,11 +78,11 @@ static void save(){
     ff.write(buf.GetString(),buf.GetSize());
     ff.close();
 }
-void cdk_init(std::list<string>& modlist){
+void mod_init(std::list<string>& modlist){
     initlog();
     load();
     register_cmd("cdk",fp(oncmd),"use a cdk");
     register_cmd("reload_cdk",fp(load),"reload cdks",1);
-    printf("[CDK] loaded! V2019-11-23\n");
+    printf("[CDK] loaded! V2019-12-11\n");
     load_helper(modlist);
 }

@@ -1,3 +1,4 @@
+#define BASE
 #include"../cmdhelper.h"
 #include"../myhook.h"
 #include<Loader.h>
@@ -15,8 +16,9 @@ using std::vector;
 #include"utils.hpp"
 #include<sstream>
 #include"base.h"
+#include"db.hpp"
 extern "C" {
-   BDL_EXPORT void base_init(list<string>& modlist);
+   BDL_EXPORT void mod_init(list<string>& modlist);
 }
 
 //export APIS
@@ -219,7 +221,7 @@ void set_int_handler(void* fn);
 static int ctrlc;
 static void autostop(){
         ctrlc++;
-        if(ctrlc==3){
+        if(ctrlc>=3){
             printf("killing server\n");
             exit(0);
         }
@@ -249,9 +251,11 @@ void forceKickPlayer(ServerPlayer& sp){
     sp.disconnect();
 }
 
-void base_init(list<string>& modlist)
+void mod_init(list<string>& modlist)
 {
-    printf("[MOD/BASE] loaded! V2019-11-24\n");  
+    mkdir("data",S_IRWXU);
+    mkdir("data/new",S_IRWXU);
+    printf("[MOD/BASE] loaded! V2019-12-11\n");  
     srand(time(0));  	
     set_int_handler(fp(autostop));		
     load_helper(modlist);

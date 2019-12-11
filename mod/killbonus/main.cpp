@@ -5,19 +5,19 @@
 #include "../base/base.h"
 #include "../money/money.h"
 #include<fstream>
+#include"../serial/seral.hpp"
 using namespace rapidjson;
 extern "C" {
-    BDL_EXPORT void killbonus_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 unordered_map<int,std::pair<int,int> > bonus_mp;
 void load(){
-    char buf[256*1024];
     Document dc;
     std::ifstream ff;
-    ff.open("config/killbonus.json",std::ios::in);
-    buf[ff.readsome(buf,256*1024)]=0;
-    ff.close();
+    char* buf;
+    int siz;
+    file2mem("config/killbonus.json",&buf,siz);
     if(dc.ParseInsitu(buf).HasParseError()){
         printf("[KillBonus] Config JSON ERROR!\n");
         exit(1);
@@ -28,6 +28,7 @@ void load(){
         auto eid=i["eid"].GetInt();
         bonus_mp[eid]={bMin,bMax};
     }
+    free(buf);
 }
 int dbg_die;
 static void toggle_dbg(){
@@ -52,11 +53,11 @@ void handle_die(Mob& a,ActorDamageSource const& b){
         }
     }
 }
-void killbonus_init(std::list<string>& modlist) {
+void mod_init(std::list<string>& modlist) {
     load();
     register_cmd("reload_kbonus",fp(load),"reload kill bonus",1);
     register_cmd("dbg_kbonus",fp(toggle_dbg),"debug kill bonus",1);
     reg_mobdie(handle_die);
-    printf("[KillBonus] Loaded V2019-11-25\n");
+    printf("[KillBonus] Loaded V2019-12-11\n");
     load_helper(modlist);
 }

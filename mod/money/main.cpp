@@ -3,10 +3,10 @@
 #include<string>
 #include<unordered_map>
 #include"../cmdhelper.h"
-#include"base.h"
 #include<vector>
 #include<Loader.h>
 #include<MC.h>
+#include"../base/base.h"
 #include"seral.hpp"
 #include <sys/stat.h>
 #include<unistd.h>
@@ -17,60 +17,64 @@
 #include"rapidjson/document.h"
 #include<fstream>
 #include"../gui/gui.h"
-
+#include"../serial/seral.hpp"
 using std::string;
 using std::to_string;
 extern "C" {
-    BDL_EXPORT void money_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-int DIRTY=1;
-static std::unordered_map<string,int> moneys;
-static void save() {
-    if(!DIRTY) return;
-    DIRTY=0;
-    char* bf;
-    int sz=maptomem(moneys,&bf,h_str2str,h_int2str);
-    mem2file("data/money/money.db",bf,sz);
+LDBImpl db("data/new/money");
+static void DO_DATA_CONVERT(const char* buf,int sz){
+    printf("size %d\n",sz);
+    DataStream ds;
+    ds.dat=string(buf,sz);
+    int length;
+    ds>>length;
+    for(int i=0;i<length;++i){
+        string key,val;
+        ds>>key>>val;
+        printf("key %s val %d\n",key.c_str(),val.size());
+        db.Put(key,val);
+    }
 }
 static void load() {
-    register_shutdown(fp(save));
-    mkdir("data",S_IRWXU);
-    mkdir("data/money",S_IRWXU);
     char* buf;
     int sz;
     struct stat tmp;
-    if(stat("data/money/money.db",&tmp)==-1) {
-        save();
+    if(stat("data/money/money.db",&tmp)!=-1) {
+        file2mem("data/money/money.db",&buf,sz);
+        DO_DATA_CONVERT(buf,sz);
+        printf("[MONEY] DATA CONVERT DONE;old:data/money/money.db.old\n");
+        link("data/money/money.db","data/money/money.db.old");
+        unlink("data/money/money.db");
+        free(buf);
     }
-    file2mem("data/money/money.db",&buf,sz);
-    memtomap(moneys,buf,h_str2str_load,h_str2int);
 }
 int INIT_MONEY;
 using namespace rapidjson;
 void loadcfg(){
     Document dc;
-    std::ifstream ff;
-    ff.open("config/money.json",std::ios::in);
-    char buf[1024*8];
-    buf[ff.readsome(buf,1024*8)]=0;
-    ff.close();
+    char* buf;
+    int siz;
+    file2mem("config/money.json",&buf,siz);
     if(dc.ParseInsitu(buf).HasParseError()){
         printf("[MONEY] Config JSON ERROR!\n");
         exit(1);
     }
     INIT_MONEY=dc["init_money"].GetInt();
+    free(buf);
 }
 int get_money(const string& pn) {
     //lazy init
-    auto it=moneys.find(pn);
-    if(it==moneys.end()) return INIT_MONEY;
-    return it->second;
+    string val;
+    auto succ=db.Get(pn,val);
+    if(!succ) return INIT_MONEY;
+    return access(val.data(),int,0);
 }
 void set_money(const string& pn,int am) {
-    moneys[pn]=am;
-    DIRTY=1;
-    //save();
+    string val((char*)&am,4);
+    db.Put(pn,val);
 }
 bool red_money(const string& pn,int am) {
     int mo=get_money(pn);
@@ -202,8 +206,8 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
 }
 
-void money_init(std::list<string>& modlist) {
-    printf("[MONEY] loaded! V2019-11-23\n");
+void mod_init(std::list<string>& modlist) {
+    printf("[MONEY] loaded! V2019-12-11\n");
     load();
     loadcfg();
     register_cmd("money",(void*)oncmd,"经济系统");

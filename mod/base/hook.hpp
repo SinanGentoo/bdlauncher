@@ -272,7 +272,6 @@ void reg_player_left(std::function<void(ServerPlayer *)> x){
     left_hook.push_back(x);
 }
 
-
 struct Actor;
 list<std::function<bool(ServerPlayer* a0,Actor* a1)> > attack_hook;
 THook(void*,_ZN6Player6attackER5Actor,ServerPlayer* sp,Actor* x){

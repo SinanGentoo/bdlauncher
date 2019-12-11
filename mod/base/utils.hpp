@@ -3,6 +3,7 @@ THook(void*,_ZN15CommandRegistry15registerCommandERKNSt7__cxx1112basic_stringIcS
 	return original(a1,a2,a3,a4,a5,0x40);
 }
 /*command cheat perm fixer*/
+/*
 void call_sht(int d);
 int tkl;
 THook(void*,_ZN5Level4tickEv,Level& a){
@@ -10,4 +11,4 @@ THook(void*,_ZN5Level4tickEv,Level& a){
     if(tkl%(5*60*20)==0) //5min
         call_sht(SIGABRT); //send sigabrt for auto save data
     return original(a);
-}
+}*/

@@ -4,7 +4,7 @@
 #include"../cmdhelper.h"
 
 extern "C" {
-   BDL_EXPORT void transfer_init(std::list<string>& modlist);
+   BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
@@ -22,8 +22,8 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         outp.error("fucku");
     }
 }
-void transfer_init(std::list<string>& modlist){
+void mod_init(std::list<string>& modlist){
     register_cmd("transfer",fp(oncmd),"transfer to server");
-    printf("[Trans] loaded! V2019-11-23\n");
+    printf("[Trans] loaded! V2019-12-11\n");
     load_helper(modlist);
 }

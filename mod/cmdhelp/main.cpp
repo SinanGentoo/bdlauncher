@@ -7,11 +7,12 @@
 #include<fstream>
 #include<cstdarg>
 #include"../gui/gui.h"
+#include"../serial/seral.hpp"
 #include<queue>
 using namespace std;
 
 extern "C" {
-   BDL_EXPORT void cmdhelp_init(std::list<string>& modlist);
+   BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 struct CMD{
@@ -113,16 +114,14 @@ THook(void*,_ZN5Level4tickEv,Level& a){
     return original(a);
 }
 int menuitem;
-char buf[8*1024*1024];
 using namespace rapidjson;
 static void load(){
     timers.clear();
     forms.clear();
     Document dc;
-    ifstream ff;
-    ff.open("config/cmd.json",ios::in);
-    buf[ff.readsome(buf,1024*1024*8)]=0;
-    ff.close();
+    char* buf;
+    int sz;
+    file2mem("config/cmd.json",&buf,sz);
     if(dc.ParseInsitu(buf).HasParseError()){
         printf("[CMDHelper] Config JSON ERROR!\n");
         exit(1);
@@ -165,10 +164,11 @@ static void load(){
             timers.emplace_back(x["time"].GetInt(),x["shift"].GetInt(),CMD("",x["cmd"].GetString()));
         }
     }
+    free(buf);
 }
 
 static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos const* dstPos,Block const* a5){
-    if(a1->getId()==menuitem){
+    if(menuitem!=0 && a1->getId()==menuitem){
         runcmdAs("c",a0->getPlayer());
         return 0;
     }
@@ -183,13 +183,29 @@ static void oncmd_sch(std::vector<string>& a,CommandOrigin const & b,CommandOutp
     oneshot_timers.emplace(tkl/20+dtime,name,chain);
     outp.success();
 }
-void cmdhelp_init(std::list<string>& modlist){
+static void oncmd_runas(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+    if((int)b.getPermissionsLevel()<1) return;
+    ARGSZ(1)
+    auto sp=getplayer_byname(a[0]);
+    if(sp){
+        string cmd;
+        int vsz=a.size();
+        for(int i=1;i<vsz;++i){
+            cmd+=a[i]+" ";
+        }
+        runcmdAs(cmd,sp).isSuccess()?outp.success():outp.error("error");
+    }else{
+        outp.error("cant find player");
+    }
+}
+void mod_init(std::list<string>& modlist){
     load();
     register_cmd("c",fp(oncmd),"显示CMD GUI");
     register_cmd("reload_cmd",fp(load),"reload cmds",1);
     register_cmd("sched",fp(oncmd_sch),"schedule a delayed cmd",1);
+    register_cmd("runas",fp(oncmd_runas),"run cmd as",1);
     reg_player_join(join);
     reg_useitemon(handle_u);
-    printf("[CMDHelp] loaded! V2019-11-24\n");
+    printf("[CMDHelp] loaded! V2019-12-11\n");
     load_helper(modlist);
 }

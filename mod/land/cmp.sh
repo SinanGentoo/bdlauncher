@@ -1,2 +1,2 @@
-g++ -fvisibility=hidden -shared -fPIC -Wl,-z,relro,-z,now -O3 -std=gnu++17 -I ../money/ -I ../base/ -I ../../include land.cpp -o ../../out/land.so
-
+MOD_NAME="land"
+${BDL_CXX} ${BDL_CXXFLAG} -fvisibility=hidden -shared -fPIC -std=gnu++17 -I ../../include main.cpp ${BDL_ADDLINK} -o ../../out/${MOD_NAME}.so

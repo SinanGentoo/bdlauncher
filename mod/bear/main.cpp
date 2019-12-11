@@ -13,12 +13,11 @@
 #include<vector>
 #include<Loader.h>
 #include<MC.h>
-#include"seral.hpp"
 #include<unistd.h>
 #include<cstdarg>
-
-#include"base.h"
+#include"../base/base.h"
 #include"../gui/gui.h"
+#include"../serial/seral.hpp"
 
 #include<cmath>
 #include<deque>
@@ -37,53 +36,24 @@ using std::unordered_set;
 #define dbg_printf(...) {}
 //#define dbg_printf printf
 extern "C" {
-    BDL_EXPORT void bear_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-static unordered_map<string,int> banlist;
-static unordered_map<string,string> xuid_name;
-static void save() {
-    char* bf;
-    int sz=maptomem(banlist,&bf,h_str2str,h_int2str);
-    mem2file("ban.db",bf,sz);
-}
-static void load() {
-    char* buf;
-    int sz;
-    struct stat tmp;
-    if(stat("ban.db",&tmp)==-1) {
-        save();
-    }
-    file2mem("ban.db",&buf,sz);
-    memtomap(banlist,buf,h_str2str_load,h_str2int);
-}
-static void save2() {
-    char* bf;
-    int sz=maptomem(xuid_name,&bf,h_str2str,h_str2str);
-    mem2file("banxuid.db",bf,sz);
-}
-static void load2() {
-    char* buf;
-    int sz;
-    struct stat tmp;
-    if(stat("banxuid.db",&tmp)==-1) {
-        save2();
-    }
-    file2mem("banxuid.db",&buf,sz);
-    memtomap(xuid_name,buf,h_str2str_load,h_str2str_load);
-}
+LDBImpl ban_data("data/new/bear");
 bool isBanned(const string& name) {
-    if(banlist.count(name)) {
-        int tm=banlist[name];
-        if(tm==0) return 1;
-        if(time(0)>tm) {
-            banlist.erase(name);
-            save();
+    string val;
+    auto succ=ban_data.Get(name,val);
+    if(succ){
+        int& tim=*((int*)val.data());
+        if(tim!=0 && time(0)>tim){
+            ban_data.Del(name);
             return 0;
+        }else{
+            return 1;
         }
-        return 1;
+    }else{
+        return 0;
     }
-    return 0;
 }
 
 static int logfd;
@@ -93,37 +63,17 @@ static void initlog() {
     logsz=lseek(logfd,0,SEEK_END);
 }
 static void async_log(const char* fmt,...) {
-    char buf[10240];
+    char buf[1024];
     auto x=time(0);
     va_list vl;
     va_start(vl,fmt);
     auto tim=strftime(buf,128,"[%Y-%m-%d %H:%M:%S] ",localtime(&x));
-    int s=vsprintf(buf+tim,fmt,vl)+tim;
+    int s=vsnprintf(buf+tim,1024,fmt,vl)+tim;
     write(1,buf,s);
     write(logfd,buf,s);
     va_end(vl);
 }
 
-THook(void*,_ZN20ServerNetworkHandler22_onClientAuthenticatedERK17NetworkIdentifierRK11Certificate,u64 t,NetworkIdentifier& a, Certificate& b){
-    string pn=ExtendedCertificate::getIdentityName(b);
-    string xuid=ExtendedCertificate::getXuid(b);
-    async_log("[JOIN]%s joined game with xuid <%s>\n",pn.c_str(),xuid.c_str());
-    if(!xuid_name.count(xuid)){
-        xuid_name[xuid]=pn;
-        save2();
-    }
-    if(isBanned(pn) || (xuid_name.count(xuid) && isBanned(xuid_name[xuid]))) {
-        string ban("§c你在当前服务器的黑名单内!");
-        getMC()->getNetEventCallback()->disconnectClient(a,ban,false);
-        return nullptr;
-    }
-    return original(t,a,b);
-}
-
-static bool hkc(ServerPlayer const * b,string& c) {
-    async_log("[CHAT]%s: %s\n",b->getName().c_str(),c.c_str());
-    return 1;
-}
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -141,25 +91,45 @@ static ssize_t recvfrom_hook(int socket, void * buffer, size_t length,
     }
     return rt;
 }
+
+THook(void*,_ZN20ServerNetworkHandler22_onClientAuthenticatedERK17NetworkIdentifierRK11Certificate,u64 t,NetworkIdentifier& a, Certificate& b){
+    string pn=ExtendedCertificate::getIdentityName(b);
+    string xuid=ExtendedCertificate::getXuid(b);
+    async_log("[JOIN]%s joined game with xuid <%s>\n",pn.c_str(),xuid.c_str());
+    string val;
+    auto succ=ban_data.Get(xuid,val);
+    if(!succ){
+        ban_data.Put(xuid,pn);
+    }
+    if(isBanned(pn) || (succ && isBanned(val))) {
+        string ban("§c你在当前服务器的黑名单内!");
+        getMC()->getNetEventCallback()->disconnectClient(a,ban,false);
+        return nullptr;
+    }
+    return original(t,a,b);
+}
+
+static bool hkc(ServerPlayer const * b,string& c) {
+    async_log("[CHAT]%s: %s\n",b->getName().c_str(),c.c_str());
+    return 1;
+}
 static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
-        banlist[a[0]]=a.size()==1?0:(time(0)+atoi(a[1].c_str()));
-        runcmd(string("skick \"")+a[0]+"\" §c你号没了");
-        save();
+        auto tim=a.size()==1?0:(time(0)+atoi(a[1].c_str()));
+        ban_data.Put(a[0],string((char*)&tim,4));
         auto x=getuser_byname(a[0]);
         if(x){
-            xuid_name[x->getXUID()]=x->getName();
-            save2();
+            ban_data.Put(x->getXUID(),x->getName());
         }
+        runcmd(string("skick \"")+a[0]+"\" §c你号没了");
         outp.success("§e玩家已封禁: "+a[0]);
     }
 }
 static void oncmd2(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
-        banlist.erase(a[0]);
-        save();
+        ban_data.Del(a[0]);
         outp.success("§e玩家已解封: "+a[0]);
     }
 }
@@ -311,6 +281,7 @@ THook(int, _ZNK19EnchantmentInstance15getEnchantLevelEv, EnchantmentInstance* th
   if (result != level2) thi->level = result;
   return result;
 }
+/*
 typedef unsigned long IHash;
 static IHash MAKE_IHASH(ItemStack* a){
     IHash res= a->getIdAuxEnchanted();
@@ -349,7 +320,7 @@ struct VirtInv{
         items.clear();
         bad=false;
     }
-};
+};*/
 //unordered_map<string,IHash> lastitem;
 THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi,Player &player, bool b){
     if(player.getPlayerPermissionLevel()>1) return original(_thi,player,b);
@@ -393,16 +364,11 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
 }
 using namespace rapidjson;
 static void load_config(){
-    char buf[96*1024];
     banitems.clear();warnitems.clear();
-    int fd=open("config/bear.json",O_RDONLY);
-    if(fd==-1){
-        printf("[BEAR] Cannot load config file!check your configs folder\n");
-        exit(0);
-    }
-    buf[read(fd,buf,96*1024-1)]=0;
-    close(fd);
     Document d;
+    char* buf;
+    int siz;
+    file2mem("config/bear.json",&buf,siz);
     if(d.ParseInsitu(buf).HasParseError()){
         printf("[ANTIBEAR] JSON ERROR!\n");
         exit(1);
@@ -420,6 +386,7 @@ static void load_config(){
     for(auto& i:y){
         warnitems.insert((short)i.GetInt());
     }
+    free(buf);
 }
 string lastn;
 clock_t lastcl;
@@ -487,10 +454,8 @@ static void bangui_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOut
             runcmdAs("ban \""+dst+"\"",sp);
     });
 }
-void bear_init(std::list<string>& modlist) {
+void mod_init(std::list<string>& modlist) {
     if(getenv("LOGCHEST")) LOG_CHEST=1;
-    load();
-    load2();
     initlog();
     register_cmd("ban",fp(oncmd),"封禁玩家",1);
     register_cmd("unban",fp(oncmd2),"解除封禁",1);
@@ -502,8 +467,8 @@ void bear_init(std::list<string>& modlist) {
     reg_player_left(handle_left);
     reg_chat(hkc);
     load_config();
-    rori=(typeof(rori))(MyHook(fp(recvfrom),fp(recvfrom_hook)));
-    printf("[ANTI-BEAR] Loaded V2019-11-25\n");
+    if(getenv("LOGNET")) rori=(typeof(rori))(MyHook(fp(recvfrom),fp(recvfrom_hook)));
+    printf("[ANTI-BEAR] Loaded V2019-12-11\n");
     load_helper(modlist);
 }
 

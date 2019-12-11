@@ -5,6 +5,7 @@
 #include<MC.h>
 #include<functional>
 #include<vector>
+#include"db.hpp"
 using std::vector;
 using std::function;
 using std::string;
@@ -68,4 +69,24 @@ static inline Minecraft* getMC(){
 static inline Level* getSrvLevel(){
     return LvCache?LvCache:(LvCache=_getMC()->getLevel());
 }
-
+static inline bool isOp(ServerPlayer const* sp){
+    return (int)sp->getPlayerPermissionLevel()>1;
+}
+static inline bool isOp(CommandOrigin const& sp){
+    return (int)sp.getPermissionsLevel()>0;
+}
+/*
+#ifndef BASE
+struct LDBImpl{
+    private:
+    char filler[32];
+    public:
+    LDBImpl(const char* name,bool read_cache=true);
+    ~LDBImpl();
+    bool Get(const string& key,string& val) const;
+    void Put(const string& key,const string& val);
+    bool Del(const string& key);
+    void Iter(function<void(const string&,const string&)> fn) const;
+    LDBImpl(LDBImpl&&) =delete;
+};
+#endif*/

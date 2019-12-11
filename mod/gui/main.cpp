@@ -1,8 +1,3 @@
-
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include"aux.h"
 #include<cstdio>
 #include<list>
 #include<forward_list>
@@ -12,17 +7,15 @@
 #include<vector>
 #include<Loader.h>
 #include<MC.h>
-#include"seral.hpp"
-#include"base.h"
+#include"../serial/seral.hpp"
 #include<unistd.h>
 #include<cstdarg>
 
-#include"base.h"
+#include"../base/base.h"
 #include<cmath>
 #include<deque>
 #include<dlfcn.h>
 #include<string>
-#include<aio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -37,7 +30,7 @@ using std::unordered_map;
 #define dbg_printf(...) {}
 //#define dbg_printf printf
 extern "C" {
-    BDL_EXPORT void gui_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 using namespace rapidjson;
@@ -129,7 +122,7 @@ void gui_Buttons(ServerPlayer* sp,const string& text,const string& title,const l
     }
     sendForm(*sp,fm);
 }
-void gui_init(std::list<string>& modlist) {
-    printf("[GUI] Loaded V2019-11-23\n");
+void mod_init(std::list<string>& modlist) {
+    printf("[GUI] Loaded V2019-12-11\n");
     load_helper(modlist);
 }

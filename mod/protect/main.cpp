@@ -3,21 +3,20 @@
 #include"../cmdhelper.h"
 #include "rapidjson/document.h"
 #include "../base/base.h"
-#include "../money/money.h"
 #include<fstream>
+#include"seral.hpp"
+#include"../serial/seral.hpp"
 using namespace rapidjson;
 extern "C" {
-    BDL_EXPORT void protect_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 int NoEnderPick,NoExplodeBreak,NoFarm;
 void load(){
-    char buf[256*1024];
     Document dc;
-    std::ifstream ff;
-    ff.open("config/protect.json",std::ios::in);
-    buf[ff.readsome(buf,256*1024)]=0;
-    ff.close();
+    char* buf;
+    int siz;
+    file2mem("config/protect.json",&buf,siz);
     if(dc.ParseInsitu(buf).HasParseError()){
         printf("[WorldProtect] Config JSON ERROR!\n");
         exit(1);
@@ -25,6 +24,7 @@ void load(){
     NoEnderPick=dc["NoEnderPick"].GetBool();
     NoExplodeBreak=dc["NoExplodeBreak"].GetBool();
     NoFarm=dc["NoFarm"].GetBool();
+    free(buf);
 }
 void* dummy(){
     return nullptr;
@@ -40,7 +40,7 @@ THook(void*,_ZN9Explosion7explodeEv,Explosion* thi){
     }
     return original(thi);
 }
-void protect_init(std::list<string>& modlist) {
+void mod_init(std::list<string>& modlist) {
     load();
     #define getfn(x) fp(dlsym(NULL,x))
     if(NoEnderPick){
@@ -49,6 +49,6 @@ void protect_init(std::list<string>& modlist) {
     if(NoFarm){
         MyHook(getfn("_ZNK9FarmBlock15transformOnFallER11BlockSourceRK8BlockPosP5Actorf"),fp(dummy));
     }
-    printf("[WorldProtect] Loaded V2019-11-24\n");
+    printf("[WorldProtect] Loaded V2019-12-11\n");
     load_helper(modlist);
 }

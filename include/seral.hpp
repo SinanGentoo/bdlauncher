@@ -100,27 +100,9 @@ static void h_str2str_load(const string& v,string& vv){
     vv=v;
 }
 static void mem2file(const char* fn,char* mem,int sz,bool fre=true){
-    /*FILE* fp=fopen(fn,"wb");
-    fwrite(mem,sz,1,fp);
-    fclose(fp);*/
     int fd=open(fn,O_WRONLY|O_CREAT,S_IRWXU);
-/*    struct aiocb ac;
-    memset(&ac,0,sizeof(ac));
-    ac.aio_fildes=fd;
-    ac.aio_buf=mem;
-    ac.aio_nbytes=sz;
-    ac.aio_offset=0;
-    aio_write(&ac);*/
     write(fd,mem,sz);
     close(fd);
     if(fre) free(mem);
 }
-static void file2mem(const char* fn,char** mem,int& sz){
-    FILE* fp=fopen(fn,"rb");
-    fseek(fp,0,SEEK_END);
-    sz=ftell(fp);
-    *mem=(char*)malloc(sz);
-    fseek(fp,0,SEEK_SET);
-    fread(*mem,sz,1,fp);
-    fclose(fp);
-}
+

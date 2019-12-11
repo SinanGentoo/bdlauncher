@@ -9,7 +9,7 @@ typedef int64_t s64;
 typedef int32_t s32;
 using namespace std;
 extern "C" {
-    BDL_EXPORT void opti_init(std::list<string>& modlist);
+    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 static void dummy() {
@@ -55,13 +55,13 @@ void load(){
         fast_math();
         printf("[OPTI] FastMath\n");
     }
-    //1.13.1 26581604 1.13.2 26587812
+    //1.13.1 26581604 1.13.2 26587812 1.14 0x9287ed8 0x78d6840
     RedStoneMUL=dc["RedStoneMUL"].GetInt();
-    float* pp=(float*)(((uintptr_t)dlsym(NULL,"_ZN10LevelChunk4tickER11BlockSourceRK4Tick"))+26580000);
+    float* pp=(float*)(((uintptr_t)dlsym(NULL,"_ZN10LevelChunk4tickER11BlockSourceRK4Tick"))+0x19b1698);
     //to +10000 bytes 26590000
     int newSpawnDist=dc["pVal"].GetInt();
-    int hit=-1;
-    for(int i=0;i<2500;++i){
+    //int hit=-1;
+    /*for(int i=0;i<10000;++i){
         if(pp[i]==9216){
             printf("found %d\n",i);
             if(hit!=-1){
@@ -71,17 +71,17 @@ void load(){
             }
             hit=i;
         }
-    }
-    if(hit==-1){
+    }*/
+    if(*pp!=9216){
         printf("[OPTI] Warning!!!Broken patch dected.Wont Patch it!\n");
         return;
     }
-    float* patch=pp+hit;
+    float* patch=pp;
     mprotect((void*)ROUND_PAGE_DOWN((ulong)patch),(ROUND_PAGE_UP((ulong)patch)-ROUND_PAGE_DOWN((ulong)patch)),PROT_WRITE|PROT_READ|PROT_EXEC);
-    pp[hit]=newSpawnDist;
+    *pp=newSpawnDist;
 }
-void opti_init(std::list<string>& modlist) {
+void mod_init(std::list<string>& modlist) {
     load();
-    printf("[OPTI] loaded! V2019-11-23\n");
+    printf("[OPTI] loaded! V2019-12-11\n");
     load_helper(modlist);
 }

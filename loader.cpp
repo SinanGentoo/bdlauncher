@@ -8,19 +8,13 @@ void load_helper(std::list<std::string>& modlist) {
         modlist.pop_front();
     }
     if(fplug.size()==0) return;
-    void* handle=dlopen(fplug.c_str(),RTLD_NOW|RTLD_GLOBAL);
+    void* handle=dlopen(fplug.c_str(),RTLD_NOW|RTLD_GLOBAL|RTLD_DEEPBIND);
     if(handle==nullptr) {
         printf("[MOD] err loading %s handle %p %s\n",fplug.c_str(),handle,dlerror());
         exit(1);
     }
-    char buf[100];
-    int fsz=fplug.size();
-    char fpp[100];
-    strcpy(fpp,fplug.c_str());
-    fpp[fsz-3]=0;
-    sprintf(buf,"%s_init",fpp+7);
-    printf("enabling %s entry %s\n",fplug.c_str(),buf);
-    void* init=dlsym(handle,buf);
+    printf("enabling %s\n",fplug.c_str());
+    void* init=dlsym(handle,"mod_init");
     if(init==nullptr) {
         printf("[MOD] err loading %s handle %p %s\n",fplug.c_str(),handle,dlerror());
         exit(1);
