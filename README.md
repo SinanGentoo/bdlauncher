@@ -6,7 +6,7 @@ Only for Linux servers
 telegram group https://t.me/bdlauncher  
 QQ group 955765957
 # DOC:
-## [Github wiki](https://github.com/Sysca11/bdlauncher/wiki)
+[Github wiki](https://github.com/Sysca11/bdlauncher/wiki)
 
 # Credits:
 ```
