@@ -191,31 +191,31 @@ struct tpreq {
 static unordered_map<string,tpreq> tpmap;
 static void oncmd_suic(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     KillActor(b.getEntity());
-    outp.success("§e你死了");
+    outp.success("You are dead");
 }
 void sendTPForm(const string& from,int type,ServerPlayer* sp){
-    string cont="§e"+from+(type?"想传送你到对方":"想传送到你")+"\n";
+    string cont=from+(type?" wants to teleport you to his location":"want to teleport to your location")+"\n";
     string name=sp->getName();
     auto lis=new list<pair<string,std::function<void()> > >();
     lis->emplace_back(
-        "同意",[name]{
+        "Accept",[name]{
             auto x=getSrvLevel()->getPlayer(name);
             if(x)
                 runcmdAs("tpa ac",x);
         }
     );
     lis->emplace_back(
-        "拒绝",[name]{
+        "Refuse",[name]{
             auto x=getSrvLevel()->getPlayer(name);
             if(x)
                 runcmdAs("tpa de",x);
         }
     );
-    gui_Buttons(sp,cont,"TP 请求",lis);
+    gui_Buttons(sp,cont,"Teleport Request",lis);
 }
 void sendTPChoose(ServerPlayer* sp,const string& type){
     string name=sp->getName();
-    gui_ChoosePlayer(sp,"§e选择目标玩家","TP Req",[name,type](const string& dest){
+    gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](const string& dest){
         auto xx=getSrvLevel()->getPlayer(name);
             if(xx)
             runcmdAs("tpa "+type+" "+SafeStr(dest),xx);
@@ -223,7 +223,7 @@ void sendTPChoose(ServerPlayer* sp,const string& type){
 }
 static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanTP){
-        outp.error("tp not enabled on this server!");
+        outp.error("Teleport not enabled on this server!");
         return;
     }
     int pl=(int)b.getPermissionsLevel();
@@ -237,37 +237,37 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     if(a[0]=="f") {
         //from
         if(dst==NULL) {
-            outp.error("§e[Teleport] 玩家不在线");
+            outp.error("Player is offline");
             return;
         }
         if(tpmap.count(dnm)) {
-            outp.error("§e[Teleport] 请求中");
+            outp.error("You have already initiated the request");
             return;
         }
         tpmap[dnm]= {0,name};
-        outp.success("§e[Teleport] 你向对方发送了传送请求");
-        sendText(dst,"§e[Teleport] "+name+" 想让你传送到他/她所在的位置\n§e输入“/tpa ac” 接受 或 “/tpa de” 拒绝");
+        outp.success("§bYou sent a teleport request to the target player");
+        sendText(dst,"§b"+name+" a wants you to teleport to his location,you can enter \"/tpa ac\" to accept or \"/tpa de\" to reject");
         sendTPForm(name,1,(ServerPlayer*)dst);
     }
     if(a[0]=="t") {
         //to
         if(dst==NULL) {
-            outp.error("§e[Teleport] 玩家不在线");
+            outp.error("Player is offline");
             return;
         }
         if(tpmap.count(dnm)) {
-            outp.error("§e[Teleport] 请求中");
+            outp.error("You have already initiated the request");
             return;
         }
         tpmap[dnm]= {1,name};
-        outp.success("§e[Teleport] 你向对方发送了传送请求");
-        sendText(dst,"§e[Teleport] "+name+" 想传送到你所在位置\n§e输入“/tpa ac” 接受 或 “/tpa de” 拒绝");
+        outp.success("§bYou sent a teleport request to the target player");
+        sendText(dst,"§b"+name+" a wants to teleport to your location,you can enter \"/tpa ac\" to accept or \"/tpa de\" to reject");
         sendTPForm(name,0,(ServerPlayer*)dst);
     }
     if(a[0]=="gui"){
         auto lis=new list<pair<string,std::function<void()> > >();
         lis->emplace_back(
-            "传送到玩家",[name]{
+            "Teleport to a player",[name]{
                 auto x=getSrvLevel()->getPlayer(name);
                 if(x)
                 {
@@ -276,7 +276,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             }
         );
         lis->emplace_back(
-            "传送玩家到你",[name]{
+            "Teleport you to a player",[name]{
                 auto x=getSrvLevel()->getPlayer(name);
                 if(x)
                 {
@@ -284,17 +284,17 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
                 }
             }
         );
-        gui_Buttons((ServerPlayer*)b.getEntity(),"发送传送请求","发送传送请求",lis);
+        gui_Buttons((ServerPlayer*)b.getEntity(),"Send teleport request","Send teleport request",lis);
     }
     if(a[0]=="ac") {
         //accept
         if(tpmap.count(name)==0) return;
         tpreq req=tpmap[name];
         tpmap.erase(name);
-        outp.success("§e[Teleport] 你已接受对方的传送请求");
+        outp.success("§bYou have accepted the send request from the other party");
         dst=getplayer_byname(req.name);
         if(dst) {
-            sendText(dst,"§e[Teleport] "+name+" 接受了请求");
+            sendText(dst,"§b "+name+" accepted the transmission request");
             if(req.dir==0) {
                 //f
                 TeleportA(*getplayer_byname(name),dst->getPos(), {dst->getDimensionId()});
@@ -308,19 +308,16 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         if(tpmap.count(name)==0) return;
         tpreq req=tpmap[name];
         tpmap.erase(name);
-        outp.success("§e[Teleport] 你已拒绝对方的传送请求");
+        outp.success("§bYou have rejected the send request");
         dst=getplayer_byname(req.name);
         if(dst)
-            sendText(dst,"§c[Teleport] "+name+" 已拒绝传送请求");
-    }
-    if(a[0]=="help") {
-        outp.error("传送系统指令列表:\n/tpa gui gui传送\n/tpa f 玩家名 ——让玩家传送到你\n/tpa t 玩家名 ——传送你到玩家\n/tpa ac ——同意\n/tpa de ——拒绝");
+            sendText(dst,"§b "+name+" rejected the transmission request");
     }
 }
 
 static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanHome){
-        outp.error("home not enabled on this server!");
+        outp.error("Home not enabled on this server!");
         return;
     }
     int pl=(int)b.getPermissionsLevel();
@@ -332,13 +329,13 @@ static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOut
     if(a[0]=="add") {
         home& myh=getHome(name);
         if(myh.cnt>=MaxHomes) {
-            outp.error("[Teleport] 无法再添加更多的家");
+            outp.error("Can't add more homes");
             return;
         }
         myh.vals[myh.cnt]=Vpos(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),homen);
         myh.cnt++;
         putHome(name,myh);
-        outp.success("§e[Teleport] 已添加家");
+        outp.success("§bSuccessfully added a home");
     }
     if(a[0]=="del") {
         home& myh=getHome(name);
@@ -352,24 +349,24 @@ static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOut
         }
         myh=tmpn;
         putHome(name,myh);
-        outp.success("§e[Teleport] 已删除家");
+        outp.success("§bHome has been deleted");
     }
     if(a[0]=="go") {
         home& myh=getHome(name);
         for(int i=0; i<myh.cnt; ++i) {
             if(myh.vals[i].name==homen) {
                 myh.vals[i].tele(*b.getEntity());
-                outp.success("§e[Teleport] 已传送到家");
+                outp.success("§bTeleported you to home");
             }
         }
     }
     if(a[0]=="ls") {
         home& myh=getHome(name);
-        sendText((Player*)b.getEntity(),"§e家列表:");
+        sendText((Player*)b.getEntity(),"§b====Home list====");
         for(int i=0; i<myh.cnt; ++i) {
             sendText((Player*)b.getEntity(),myh.vals[i].name);
         }
-        outp.success("§e============");
+        outp.success("§b============");
     }
     if(a[0]=="gui"){
         home& myh=getHome(name);
@@ -377,7 +374,7 @@ static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOut
         for(int i=0; i<myh.cnt; ++i) {
             string warpname=myh.vals[i].name;
             lis->emplace_back(
-                "到 "+warpname,
+                warpname,
                 [warpname,name]()->void{
                     auto x=getSrvLevel()->getPlayer(name);
                     if(x)
@@ -385,10 +382,7 @@ static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOut
                 }
             );
         }
-        gui_Buttons((ServerPlayer*)b.getEntity(),"回家\n","家",lis);
-    }
-    if(a[0]=="help") {
-        outp.error("家指令列表:\n/home gui gui回家\n/home add 名字 ——添加一个家\n/home ls ——查看你的所有家\n/home go 名字 ——回家");
+        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a home","Home",lis);
     }
 }
 static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
@@ -401,26 +395,23 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
         if(pl<1) return;
         ARGSZ(2)
         add_warp(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),a[1]);
-        outp.success("§e§e[Teleport] 已添加Warp");
+        outp.success("§bSuccessfully added a warp");
         return;
     }
     if(a[0]=="del") {
         if(pl<1) return;
         ARGSZ(2)
         del_warp(a[1]);
-        outp.success("§e§e[Teleport] 已删除Warp");
+        outp.success("§bSuccessfully deleted a Warp");
         return;
     }
     if(a[0]=="ls") {
-        outp.addMessage("§eWarp列表:");
+        outp.addMessage("§b====Warp list====");
         for(auto const& i:warp_list) {
             outp.addMessage(i);
         }
-        outp.success("§e===========");
+        outp.success("§b===========");
         return;
-    }
-    if(a[0]=="help") {
-        outp.error("Warp指令列表:\n/warp ls ——查看地标列表\n/warp 地标名 ——前往一个地标");
     }
     if(a[0]=="gui"){
         auto lis=new list<pair<string,std::function<void()> > >();
@@ -428,7 +419,7 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
         for(auto const& i:warp_list) {
             string warpname=i;
             lis->emplace_back(
-                "前往 "+warpname,
+                warpname,
                 [warpname,nam]()->void{
                     auto x=getSrvLevel()->getPlayer(nam);
                     if(x)
@@ -436,36 +427,36 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
                 }
             );
         }
-        gui_Buttons((ServerPlayer*)b.getEntity(),"前往地标\n","warp",lis);
+        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a warp","Warp",lis);
     }
     //go
     auto it=warp.find(a[0]);
         if(it!=warp.end()) {
             it->second.tele(*b.getEntity());
-            outp.success("§e[Teleport] 已传送到Warp");
+            outp.success("§bTeleported you to warp");
             return;
         }
 }
 
 static unordered_map<string,pair<Vec3,int> > deathpoint;
 static void oncmd_back(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
-    if(!CanBack) {outp.error("back not enabled on this server"); return;}
+    if(!CanBack) {outp.error("Back not enabled on this server"); return;}
     auto it=deathpoint.find(b.getName());
     if(it==deathpoint.end()){
-        outp.error("cant find deathpoint");
+        outp.error("Can't find deathpoint");
         return;
     }
     ServerPlayer* sp=(ServerPlayer*)b.getEntity();
     TeleportA(*sp,it->second.first,{it->second.second});
     deathpoint.erase(it);
-    outp.success("okay!back to deathpoint");
+    outp.success("§bBack to deathpoint");
 }
 static void handle_mobdie(Mob& mb,const ActorDamageSource&){
     if(!CanBack) return;
     auto sp=getSP(mb);
     if(sp){
         ServerPlayer* sp=(ServerPlayer*)&mb;
-        sendText(sp,"use /back to return last deathpoint");
+        sendText(sp,"§bYou can use /back to return last deathpoint");
         deathpoint[sp->getName()]={sp->getPos(),sp->getDimensionId()};
     }
 }
@@ -492,10 +483,10 @@ void mod_init(std::list<string>& modlist) {
     load();
     load_warps_new();
     load_cfg();
-    register_cmd("suicide",(void*)oncmd_suic,"自杀");
-    register_cmd("tpa",(void*)oncmd,"传送系统");
-    register_cmd("home",(void*)oncmd_home,"家");
-    register_cmd("warp",(void*)oncmd_warp,"地标");
+    register_cmd("suicide",(void*)oncmd_suic,"kill yourself");
+    register_cmd("tpa",(void*)oncmd,"teleport command");
+    register_cmd("home",(void*)oncmd_home,"home command");
+    register_cmd("warp",(void*)oncmd_warp,"warp command");
     register_cmd("back",(void*)oncmd_back,"back to deathpoint");
     reg_mobdie(handle_mobdie);
     load_helper(modlist);

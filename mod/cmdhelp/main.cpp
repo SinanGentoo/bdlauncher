@@ -195,12 +195,12 @@ static void oncmd_runas(std::vector<string>& a,CommandOrigin const & b,CommandOu
         }
         runcmdAs(cmd,sp).isSuccess()?outp.success():outp.error("error");
     }else{
-        outp.error("cant find player");
+        outp.error("Can't find player");
     }
 }
 void mod_init(std::list<string>& modlist){
     load();
-    register_cmd("c",fp(oncmd),"显示CMD GUI");
+    register_cmd("c",fp(oncmd),"open gui");
     register_cmd("reload_cmd",fp(load),"reload cmds",1);
     register_cmd("sched",fp(oncmd_sch),"schedule a delayed cmd",1);
     register_cmd("runas",fp(oncmd_runas),"run cmd as",1);

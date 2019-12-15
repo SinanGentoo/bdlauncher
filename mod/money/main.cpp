@@ -101,7 +101,8 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             dst=b.getName();
         }
         char buf[1024];
-        sprintf(buf,M_QUERY_STR,dst.c_str(),get_money(dst));
+        //sprintf(buf,"§b%s's money: %d",dst.c_str(),get_money(dst));
+        snprintf(buf,1024,"§b%s's money: %d",dst.c_str(),get_money(dst));
         outp.addMessage(string(buf));
         outp.success();
         return;
@@ -120,7 +121,8 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         }
         set_money(dst,amo);
         char buf[1024];
-        sprintf(buf,M_SET_STR,dst.c_str(),get_money(dst));
+        //sprintf(buf,"§bSucceed to set %s 's money to %d",dst.c_str(),get_money(dst));
+        snprintf(buf,1024,"§bSucceed to set %s 's money to %d",dst.c_str(),get_money(dst));
         outp.success(string(buf));
     }
     if(a[0]=="add") {
@@ -137,11 +139,12 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         }
         add_money(dst,amo);
         char buf[1024];
-        sprintf(buf,"§e[Money system] 往 %s 的账户上添加了 %d",dst.c_str(),amo);
+        //sprintf(buf,"§bAdded %d money to %s",amo,dst.c_str());
+        snprintf(buf,1024,"§bAdded %d money to %s",amo,dst.c_str());
         outp.success(string(buf));
                 auto dstp=getplayer_byname(dst);
                 if(dstp)
-                    sendText(dstp,"you get "+std::to_string(amo)+" money");
+                    sendText(dstp,"§bYou get "+std::to_string(amo)+" money");
     }
     if(a[0]=="reduce" || a[0]=="rd") {
         if((int)b.getPermissionsLevel()<1) return;
@@ -156,13 +159,13 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             amo=atoi(a[1].c_str());
         }
         if(red_money(dst,amo)) {
-            outp.success("§e[Money system] 扣除完毕");
+            outp.success("§bDeducted successfully");
                 auto dstp=getplayer_byname(dst);
                 if(dstp)
-                    sendText(dstp,"you used "+std::to_string(amo)+" money");
+                    sendText(dstp,"You used "+std::to_string(amo)+" money");
         }
         else {
-            outp.error("[Money system] 对方余额不足");
+            outp.error("§bTarget player does not have enough money");
         }
     }
     if(a[0]=="pay") {
@@ -179,22 +182,23 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             if(red_money(pl,mon)) {
                 add_money(pl2,mon);
                 char msg[1000];
-                sprintf(msg,"§e[Money system] 你给了 %s %d 余额",pl2.c_str(),mon);
+                //sprintf(msg,"§bYou gave %s %d money",pl2.c_str(),mon);
+                snprintf(msg,1000,"§bYou gave %s %d money",pl2.c_str(),mon);
                 outp.success(string(msg));
                 auto dstp=getplayer_byname(pl2);
                 if(dstp)
-                    sendText(dstp,"you get "+std::to_string(mon)+" money");
+                    sendText(dstp,"§bYou get "+std::to_string(mon)+" money from "+pl);
             } else {
-                outp.error("[Money system] Sorry，转账失败，请检查你的余额是否足够。");
+                outp.error("You don't have enough money");
             }
         }
     }
     if(a[0]=="paygui"){
         string nm=b.getName();
-        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Money System",[nm](const string& chosen){
+        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Pay",[nm](const string& chosen){
             auto p=getplayer_byname(nm);
             if(p){
-                gui_GetInput((ServerPlayer*)p,"How much to pay to "+chosen+"?","Money System",[chosen,nm](const string& mon){
+                gui_GetInput((ServerPlayer*)p,"How much do you pay for "+chosen+"?","Pay",[chosen,nm](const string& mon){
                     auto p=getplayer_byname(nm);
                     if(p)
                         runcmdAs("money pay \""+chosen+"\" "+mon,p);
@@ -202,16 +206,13 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             }
         });
     }
-     if(a[0]=="help") {
-        outp.error("经济系统命令列表:\n/money query ——查询自己余额\n/money pay 玩家ID 余额 ——给玩家打钱");
-    }
 }
 
 void mod_init(std::list<string>& modlist) {
     printf("[MONEY] loaded! V2019-12-14\n");
     load();
     loadcfg();
-    register_cmd("money",(void*)oncmd,"经济系统");
+    register_cmd("money",(void*)oncmd,"money command");
     register_cmd("reload_money",(void*)loadcfg,"reload money cfg",1);
     load_helper(modlist);
 }

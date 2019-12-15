@@ -67,14 +67,15 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     ARGSZ(1)
     if(a[0]=="exit"){
         choose_state.erase(nm);
+        outp.success("§bExit selection mode, please input /land buy");
     }
     if(a[0]=="a"){
         choose_state[nm]=1;
-        outp.success("enter choose mode A");
+        outp.success("§bEnter selection mode, please click on the ground to select point A");
     }
     if(a[0]=="b"){
         choose_state[nm]=2;
-        outp.success("enter choose mod B");
+        outp.success("§bPlease click on the ground to select point B");
     }
     if(a[0]=="query"){
         auto& pos=b.getEntity()->getPos();
@@ -82,10 +83,11 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         auto lp=getFastLand(pos.x,pos.z,dim);
         if(lp){
             char buf[1000];
-            sprintf(buf,"this is %s's land",lp->owner);
+            //sprintf(buf,"§bThis is %s's land",lp->owner);
+            snprintf(buf,1000,"§bThis is %s's land",lp->owner);
             outp.success(buf);
         }else{
-            outp.error("no land here");
+            outp.error("No land here");
             return;
         }
     }
@@ -93,7 +95,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int x,z,dx,dz;
         int dim=b.getEntity()->getDimensionId();
         if(startpos.count(nm)+endpos.count(nm)!=2){
-            outp.error("choose 2 points please.");
+            outp.error("Choose 2 points please.");
             return;
         }
 	    choose_state.erase(nm);
@@ -103,24 +105,24 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         dz=max(startpos[nm].z,endpos[nm].z);
         //step -1 :sanitize pos
         if(x < -200000 || z< -200000){
-            outp.error("pos too small!> -200000 needed");
+            outp.error("Pos too small !> -200000 needed");
             return;
         }
         //step 1 check money
         int deltax=dx-x+1,deltaz=dz-z+1;
         uint siz=deltax*deltaz;
         if(deltax>=4096 || deltaz>=4096 || siz>=5000000){
-            outp.error("to big land");
+            outp.error("Too big land");
             return;
         }
         int price=siz*LAND_PRICE;
         if(price<=0 || price>=500000000){
-            outp.error("to big land");
+            outp.error("Too big land");
             return;
         }
         auto mon=get_money(nm);
         if(mon<price){
-            outp.error("money not enough");
+            outp.error("Money not enough");
             return;
         }
         //step 2 check coll
@@ -129,15 +131,15 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         {
             auto lp=getFastLand(i,j,dim);
             if(lp){
-                outp.error("land collision detected!");
+                outp.error("Land collision detected!");
                 return;
             }
         }
         //step 3 add land
         set_money(nm,mon-price);
-        printf("last step\n");
+        //printf("last step\n");
         addLand(to_lpos(x),to_lpos(dx),to_lpos(z),to_lpos(dz),dim,nm);
-        outp.success("okay");
+        outp.success("§bSuccessful land purchase");
     }
     if(a[0]=="sell"){
         auto& pos=b.getEntity()->getPos();
@@ -147,9 +149,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             int siz=(lp->dx-lp->x)*(lp->dz-lp->z);
             add_money(nm,siz*LAND_PRICE2);
             removeLand(lp);
-            outp.success("okay!");
+            outp.success("§bYour land has been sold");
         }else{
-            outp.error("no land here or not your land");
+            outp.error("No land here or not your land");
             return;
         }
     }
@@ -163,9 +165,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             Fland2Dland(lp,dl);
             dl.addOwner(a[1]);
             updLand(dl);
-            outp.success("okay!");
+            outp.success("§bMake "+a[1]+" a trusted player");
         }else{
-            outp.error("no land here or not your land");
+            outp.error("No land here or not your land");
             return;
         }
     }
@@ -179,9 +181,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             Fland2Dland(lp,dl);
             dl.delOwner(a[1]);
             updLand(dl);
-            outp.success("okay!");
+            outp.success("§bMake "+a[1]+" a distrust player");
         }else{
-            outp.error("no land here or not your land");
+            outp.error("No land here or not your land");
             return;
         }
     }
@@ -195,9 +197,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             Fland2Dland(lp,dl);
             dl.perm=(LandPerm)atoi(a[1].c_str());
             updLand(dl);
-            outp.success("okay!");
+            outp.success("§bChange permissions successfully");
         }else{
-            outp.error("no land here or not your land");
+            outp.error("No land here or not your land");
             return;
         }
     }
@@ -212,9 +214,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             dl.addOwner(a[1],true);
             dl.delOwner(nm);
             updLand(dl);
-            outp.success("okay!");
+            outp.success("§bSuccessfully give your territory to "+a[1]);
         }else{
-            outp.error("no land here or not your land");
+            outp.error("No land here or not your land");
             return;
         }
     }
@@ -223,14 +225,14 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         string name = b.getName();
         auto sp = getSP(b.getEntity());
         if (sp)
-            gui_ChoosePlayer(sp, "§e选择要信任的玩家", "Land Req", [name](const string &dest) {
+            gui_ChoosePlayer(sp, "Choose players to trust", "Trust", [name](const string &dest) {
                 auto xx = getplayer_byname(name);
                 if (xx)
                     runcmdAs("land trust " + SafeStr(dest), xx);
             });
         else
         {
-            outp.error("fucku");
+            outp.error("Error");
         }
     }
 }
@@ -290,7 +292,8 @@ static int handle_dest(GameMode *a0, BlockPos const *a1)
     {
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
-        sprintf(buf, "this is %s's land", fl->owner);
+        //sprintf(buf, "§cThis is %s's land", fl->owner);
+        snprintf(buf,1000,"§cThis is %s's land",fl->owner);
         sendText(sp, buf, POPUP);
         return 0;
     }
@@ -316,7 +319,8 @@ static bool handle_attack(Actor &vi, ActorDamageSource const &src, int &val)
         {
             char buf[1000];
             FastLand *fl = getFastLand(x, z, dim);
-            sprintf(buf, "this is %s's land", fl->owner);
+            //sprintf(buf, "§cThis is %s's land", fl->owner);
+            snprintf(buf,1000,"§cThis is %s's land",fl->owner);
             sendText(sp, buf, POPUP);
             return 0;
         }
@@ -339,7 +343,8 @@ static bool handle_inter(GameMode *a0, Actor &a1)
     {
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
-        sprintf(buf, "this is %s's land", fl->owner);
+        //sprintf(buf, "§cThis is %s's land", fl->owner);
+        snprintf(buf,1000,"§cThis is %s's land", fl->owner);
         sendText(sp, buf, POPUP);
         return 0;
     }
@@ -353,14 +358,15 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
         if (choose_state[name] == 1)
         {
             startpos[name] = {a2->x,a2->z};
-            sendText(sp, "已选择点 A");
+            sendText(sp, "§bPoint A selected");
         }
         if (choose_state[name] == 2)
         {
             endpos[name] = {a2->x, a2->z};
             char buf[1000];
             auto siz=abs(startpos[name].x-endpos[name].x+1)*abs(startpos[name].z-endpos[name].z+1);
-            sprintf(buf,"已选择点 B size %d price %d",siz,siz*LAND_PRICE);
+            //sprintf(buf,"§bPoint B selected,size: %d price: %d",siz,siz*LAND_PRICE);
+            snprintf(buf,1000,"§bPoint B selected,size: %d price: %d",siz,siz*LAND_PRICE);
             sendText(sp, buf);
         }
         return 0;
@@ -378,7 +384,8 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
     }else{
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
-        sprintf(buf, "this is %s's land", fl->owner);
+        //sprintf(buf, "§cThis is %s's land", fl->owner);
+        snprintf(buf,1000,"§cThis is %s's land",fl->owner);
         sendText(sp, buf, POPUP);
         return 0;
     }
@@ -397,7 +404,8 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
     {
         char buf[1000];
         FastLand *fl = getFastLand(x, z, dim);
-        sprintf(buf, "this is %s's land", fl->owner);
+        //sprintf(buf, "§bThis is %s's land", fl->owner);
+        snprintf(buf,1000,"§bThis is %s's land",fl->owner);
         sendText(&sp, buf, POPUP);
         return 0;
     }
@@ -408,7 +416,7 @@ void mod_init(std::list<string> &modlist)
     load();
     loadcfg();
     init_cache();
-    register_cmd("land", (void *)oncmd, "领地系统");
+    register_cmd("land", (void *)oncmd, "land command");
     register_cmd("reload_land", fp(loadcfg), "reload land cfg", 1);
     reg_destroy(handle_dest);
     reg_useitemon(handle_useion);
