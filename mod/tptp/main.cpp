@@ -276,7 +276,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
             }
         );
         lis->emplace_back(
-            "Teleport you to a player",[name]{
+            "Teleport a player to you",[name]{
                 auto x=getSrvLevel()->getPlayer(name);
                 if(x)
                 {
