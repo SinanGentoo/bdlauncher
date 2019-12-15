@@ -50,7 +50,7 @@ struct FastLand{
         return chkOwner(x)?true:(perm&PERM);
     }
     int memsz(){
-        return sizeof(FastLand)+owner_sz;
+        return sizeof(FastLand)+owner_sz+1;
     }
 };
 static_assert(sizeof(FastLand)==28);
@@ -99,7 +99,8 @@ struct LandCacheManager{
         if(it==cache.end()){
             string landstr;
             db.Get("l_"+string((char*)&id,4),landstr);
-            res=(FastLand*)malloc(landstr.size());
+            res=(FastLand*)malloc(landstr.size())+1;
+            access(res,char,landstr.size())=0;
             memcpy(res,landstr.data(),landstr.size());
             cache[id]=res;
         }else{
