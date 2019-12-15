@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../aux.h"
+#include "../../util.h"
 #include "Packet.h"
 #include<string>
 #include<dlfcn.h>

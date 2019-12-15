@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../aux.h"
+#include "../../util.h"
 #include "../core/NBT.h"
 #include <memory>
 #include <string>
