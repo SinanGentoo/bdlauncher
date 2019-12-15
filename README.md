@@ -5,8 +5,9 @@ Only for Linux servers
 只支持Linux服务器  
 telegram group https://t.me/bdlauncher  
 QQ group 955765957
-# DOC:
-[Github wiki](https://github.com/Sysca11/bdlauncher/wiki)
+# Docs:
+Install: [How to install](https://github.com/Sysca11/bdlauncher/wiki/Install)  
+If you need more help, check out the [wiki](https://github.com/Sysca11/bdlauncher/wiki).
 
 # Credits:
 ```
