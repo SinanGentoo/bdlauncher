@@ -99,8 +99,8 @@ struct LandCacheManager{
         if(it==cache.end()){
             string landstr;
             db.Get("l_"+string((char*)&id,4),landstr);
-            res=(FastLand*)malloc(landstr.size())+1;
-            access(res,char,landstr.size())=0;
+            res=(FastLand*)malloc(landstr.size()+1);
+            *(char*)(((uintptr_t)res)+landstr.size())=0;
             memcpy(res,landstr.data(),landstr.size());
             cache[id]=res;
         }else{
