@@ -1,2 +1,10 @@
-{"FChatLimit": true,"FPushChest": true, "FDestroyCheck": true, "FSpwanExp": true, "LogChest":true , "banitems": [383], "warnitems": []}
+{
+    "FChatLimit": true,
+    "FPushChest": true,
+    "FDestroyCheck": true,
+    "FSpwanExp": true,
+    "LogChest":true ,
+    "banitems": [383],
+    "warnitems": []
+}
 
