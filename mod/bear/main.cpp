@@ -123,15 +123,15 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         if(x){
             ban_data.Put(x->getXUID(),x->getName());
         }
-        runcmd(string("skick \"")+a[0]+"\" §c你号没了");
-        outp.success("§e玩家已封禁: "+a[0]);
+        runcmd(string("skick \"")+a[0]+"\" §cYou are banned");
+        outp.success("§b"+a[0]+" has been banned");
     }
 }
 static void oncmd2(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         ban_data.Del(a[0]);
-        outp.success("§e玩家已解封: "+a[0]);
+        outp.success("§b"+a[0]+" has been unblocked");
     }
 }
 //add custom
@@ -158,12 +158,12 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     if(a0->getPlayer()->getPlayerPermissionLevel()>1) return 1;
     string sn=a0->getPlayer()->getName();
     if(banitems.count(a1->getId())){
-        async_log("[ITEM] %s 使用高危物品(banned) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
-        sendText(a0->getPlayer(),"§c无法使用违禁物品",JUKEBOX_POPUP);
+        async_log("[ITEM] %s tries to use prohibited items(banned) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
+        sendText(a0->getPlayer(),"§cUnable to use prohibited items",JUKEBOX_POPUP);
         return 0;
     }
     if(warnitems.count(a1->getId())){
-        async_log("[ITEM] %s 使用危险物品(warn) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
+        async_log("[ITEM] %s tries to use dangerous items(warn) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
         return 1;
     }
     return 1;
@@ -180,7 +180,7 @@ enum CheatType{
 static void notifyCheat(const string& name,CheatType x){
     const char* CName[]={"FLY","NOCLIP","Creative","Teleport"};
     async_log("[%s] detected for %s\n",CName[x],name.c_str());
-    string kick=string("skick \"")+name+"\" §c你号没了";
+    string kick=string("skick \"")+name+"\" §cYou are banned";
     switch(x){
         case FLY:
             runcmd(kick);
@@ -344,7 +344,7 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
             }
         }
         if(banitems.count(j.getFromItem()->getId()) || banitems.count(j.getToItem()->getId())){
-            async_log("[ITEM] %s 使用高危物品(banned) %s %s\n",name.c_str(),j.getFromItem()->toString().c_str(),j.getToItem()->toString().c_str());
+            async_log("[ITEM] %s tries to use dangerous items(banned) %s %s\n",name.c_str(),j.getFromItem()->toString().c_str(),j.getToItem()->toString().c_str());
             sendText(&player,BANNED_ITEM,POPUP);
             return 6;
         }
@@ -448,9 +448,9 @@ static void kick_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOutpu
         auto x=getuser_byname(a[0]);
         if(x){
             forceKickPlayer(*x);
-            outp.success("okay!");
+            outp.success("§bKicked player");
         }else{
-            outp.error("not found!");
+            outp.error("Player not found!");
         }
     }
 }
@@ -475,9 +475,9 @@ THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstanc
 }
 void mod_init(std::list<string>& modlist) {
     initlog();
-    register_cmd("ban",fp(oncmd),"Ban player",1);
+    register_cmd("ban",fp(oncmd),"ban player",1);
     register_cmd("unban",fp(oncmd2),"unban player",1);
-    register_cmd("reload_bear",fp(load_config),"Reload Configs for antibear",1);
+    register_cmd("reload_bear",fp(load_config),"reload Configs for antibear",1);
     register_cmd("bear_dbg",fp(toggle_dbg),"toggle item id debug",1);
     register_cmd("skick",fp(kick_cmd),"force kick",1);
     register_cmd("bangui",fp(bangui_cmd),"gui for ban",1);
