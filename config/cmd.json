@@ -32,7 +32,8 @@
     },
     
     {
-        "type":"menuitem","itemid":3
+        "type":"menuitem",
+        "itemid":3
     }  
 ]
 
