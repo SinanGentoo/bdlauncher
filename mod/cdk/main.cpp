@@ -35,15 +35,16 @@ static void async_log(const char* fmt,...) {
 }
 static void save();
 unordered_map<string,string> cdks;
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
-    if(!cdks.count(a[0])) {outp.error("Invalid cdk");return;}
-    auto run=cdks[a[0]];
-    cdks.erase(a[0]);
-    async_log("[CDK] %s uses CDK %s\n",b.getName().c_str(),a[0].c_str());
+    string cdk=string(a[0]);
+    if(!cdks.count(cdk)) {outp.error("Invalid cdk");return;}
+    auto run=cdks[cdk];
+    cdks.erase(cdk);
+    async_log("[CDK] %s uses CDK %s\n",b.getName().c_str(),cdk.c_str());
     execute_cmdchain(run,b.getName(),false);
     save();
-    outp.success("§bYou used cdk: a[0]");
+    outp.success("§bYou used cdk: "+cdk+"\n");
 }
 using namespace rapidjson;
 static void load(){
@@ -81,8 +82,8 @@ static void save(){
 void mod_init(std::list<string>& modlist){
     initlog();
     load();
-    register_cmd("cdk",fp(oncmd),"use a cdk");
-    register_cmd("reload_cdk",fp(load),"reload cdks",1);
+    register_cmd("cdk",oncmd,"use a cdk");
+    register_cmd("reload_cdk",load,"reload cdks",1);
     printf("[CDK] loaded! V2019-12-11\n");
     load_helper(modlist);
 }

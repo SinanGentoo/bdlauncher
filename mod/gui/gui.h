@@ -9,7 +9,7 @@ using std::string;
 using namespace rapidjson;
 struct BaseForm{
     virtual void setID(int i)=0;
-    virtual string getstr()=0;
+    virtual string_view getstr()=0;
     virtual int getid()=0;
     virtual void process(const string&)=0;
 };
@@ -18,8 +18,9 @@ struct Form:BaseForm{
     int fid;
     Document dc;
     vector<string> labels;
-    std::function< void(const string&)> cb;
-    Form(std::function< void(const string&)> cbx){
+    std::function< void(string_view)> cb;
+    StringBuffer buf;
+    Form(std::function< void(string_view)> cbx){
         cb=cbx;
         dc.SetObject();
         dc.AddMember("type","form",dc.GetAllocator());
@@ -40,13 +41,12 @@ struct Form:BaseForm{
     int getid(){
         return fid;
     }
-    string getstr(){
-        StringBuffer buf;
+    string_view getstr(){
         Writer<StringBuffer> writer(buf);
         dc.Accept(writer);
-        return string(buf.GetString());
+        return {buf.GetString(),buf.GetSize()};
     }
-    Form* addButton(const string& text,const string& label){
+    Form* addButton(string_view text,string_view label){
         Value bt(kObjectType);
         Value ss;
         ss.SetString(text.data(),text.size(),dc.GetAllocator());
@@ -55,20 +55,21 @@ struct Form:BaseForm{
         labels.emplace_back(label);
         return this;
     }
-    Form* setContent(const string& text){
-        dc["content"].SetString(text.c_str(),dc.GetAllocator());
+    Form* setContent(string_view text){
+        dc["content"].SetString(text.data(),text.size(),dc.GetAllocator());
         return this;
     }
-    Form* setTitle(const string& text){
-        dc["title"].SetString(text.c_str(),dc.GetAllocator());
+    Form* setTitle(string_view text){
+        dc["title"].SetString(text.data(),text.size(),dc.GetAllocator());
         return this;
     }
 };
 struct SimpleInput:BaseForm{
     int fid;
     Document dc;
-    std::function< void(const string&)> cb;
-    SimpleInput(const string& ti,std::function< void(const string&)> cbx){
+    std::function< void(string_view)> cb;
+    StringBuffer buf;
+    SimpleInput(string_view ti,std::function< void(string_view)> cbx){
         cb=cbx;
         Value ss;
         dc.SetObject();
@@ -79,11 +80,8 @@ struct SimpleInput:BaseForm{
         dc.AddMember("content",x,dc.GetAllocator());
     }
     void process(const string& d){
-        /*dc.Parse(d.c_str());
-        if(!dc.IsArray()) return;
-        cb(string(dc.GetArray().Begin()->GetString()));*/
         if(d[0]=='n') return;
-        cb(string(d.substr(2,d.size()-5)));
+        cb(string_view(d).substr(2,d.size()-5));
     }
     int getid(){
         return fid;
@@ -91,13 +89,12 @@ struct SimpleInput:BaseForm{
     void setID(int i){
         fid=i;
     }
-    string getstr(){
-        StringBuffer buf;
+    string_view getstr(){
         Writer<StringBuffer> writer(buf);
         dc.Accept(writer);
-        return string(buf.GetString());
+        return {buf.GetString(),buf.GetSize()};
     }
-    SimpleInput* addInput(const string& text){
+    SimpleInput* addInput(string_view text){
         Value tmp(kObjectType);
         Value ss;
         ss.SetString(text.data(),text.size(),dc.GetAllocator());
@@ -110,9 +107,9 @@ struct SimpleInput:BaseForm{
     }
 };
 BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm);
-BDL_EXPORT void sendForm(const string& sp,BaseForm* fm);
+BDL_EXPORT void sendForm(string_view sp,BaseForm* fm);
 
-BDL_EXPORT void gui_ChoosePlayer(ServerPlayer* sp,const string& text,const string& title,std::function<void(const string&)> cb);
-BDL_EXPORT void gui_GetInput(ServerPlayer* sp,const string& text,const string& title,std::function<void(const string&)> cb);
+BDL_EXPORT void gui_ChoosePlayer(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb);
+BDL_EXPORT void gui_GetInput(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb);
 using std::pair;
-BDL_EXPORT void gui_Buttons(ServerPlayer* sp,const string& text,const string& title,const list<pair<string,std::function<void()> > >* li);
+BDL_EXPORT void gui_Buttons(ServerPlayer* sp,string_view text,string_view title,const list<pair<string,std::function<void()> > >* li);

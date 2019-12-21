@@ -1,4 +1,5 @@
 #pragma once
+#include"stkbuf.hpp"
 #include "../cmdhelper.h"
 #include <string>
 #include <unordered_map>
@@ -6,6 +7,8 @@
 #include <functional>
 #include <vector>
 #include "db.hpp"
+#include<string_view>
+using std::string_view;
 using std::function;
 using std::string;
 using std::vector;
@@ -24,40 +27,41 @@ enum TextType : char
     JUKEBOX_POPUP = 4,
     TIP = 5
 };
-BDL_EXPORT void sendText(Player *a, const string &ct, TextType type = RAW);
+BDL_EXPORT void sendText(Player *a, string_view ct, TextType type = RAW);
 #define sendText2(a, b) sendText(a, b, JUKEBOX_POPUP)
 BDL_EXPORT void TeleportA(Actor &a, Vec3 b, AutomaticID<Dimension, int> c);
 //BDL_EXPORT Player* getplayer_byname(const string& name);
-#define getplayer_byname(x) (getSrvLevel()->getPlayer(x))
-BDL_EXPORT Player *getplayer_byname2(const string &name);
+BDL_EXPORT Player *getplayer_byname2(string_view name);
 BDL_EXPORT void get_player_names(vector<string> &a);
 BDL_EXPORT void KillActor(Actor *a);
-BDL_EXPORT MCRESULT runcmd(const string &a);
-BDL_EXPORT MCRESULT runcmdAs(const string &a, Player *sp);
+BDL_EXPORT MCRESULT runcmd(string_view a);
+BDL_EXPORT MCRESULT runcmdAs(string_view a, Player *sp);
 BDL_EXPORT Minecraft *_getMC();
 
-BDL_EXPORT void split_string(const std::string &s, std::vector<std::string> &v, const std::string &c);
-BDL_EXPORT bool execute_cmdchain(string chain_, string sp = "", bool chained = true);
-BDL_EXPORT void register_cmd(const std::string &name, void *fn, const std::string &desc = "mod command", int permlevel = 0);
-
-BDL_EXPORT void reg_useitemon(std::function<bool(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5)>);
-BDL_EXPORT void reg_destroy(std::function<bool(GameMode *a0, BlockPos const *)>);
-BDL_EXPORT void reg_attack(std::function<bool(ServerPlayer *a0, Actor *a1)>);
-BDL_EXPORT void reg_chat(std::function<bool(ServerPlayer const *a0, string &payload)>);
-BDL_EXPORT void reg_player_join(std::function<void(ServerPlayer *)>);
-BDL_EXPORT void reg_player_left(std::function<void(ServerPlayer *)>);
-BDL_EXPORT void reg_pickup(std::function<bool(Actor *a0, ItemActor *a1)>);
-BDL_EXPORT void reg_popItem(std::function<bool(ServerPlayer &, BlockPos &)>);
-BDL_EXPORT void reg_mobhurt(function<bool(Mob &, ActorDamageSource const &, int &)> x);
-BDL_EXPORT void reg_mobdie(function<void(Mob &, ActorDamageSource const &)> x);
-BDL_EXPORT void reg_actorhurt(function<bool(Actor &, ActorDamageSource const &, int &)> x);
-BDL_EXPORT void reg_interact(function<bool(GameMode *, Actor &)> x);
+BDL_EXPORT void split_string(string_view s, std::vector<std::string_view> &v, string_view c);
+BDL_EXPORT bool execute_cmdchain(string_view chain_, string_view sp, bool chained = true);
+BDL_EXPORT void register_cmd(const std::string &name, void (*fn)(std::vector<string_view>&,CommandOrigin const &,CommandOutput &outp), const std::string &desc = "mod command", int permlevel = 0);
+BDL_EXPORT void register_cmd(const std::string &name,void (*fn)(void), const std::string &desc = "mod command", int permlevel = 0);
+BDL_EXPORT void reg_useitemon(bool(*)(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5));
+BDL_EXPORT void reg_destroy(bool(*)(GameMode *a0, BlockPos const *));
+BDL_EXPORT void reg_attack(bool(*)(ServerPlayer *a0, Actor *a1));
+BDL_EXPORT void reg_chat(bool(*)(ServerPlayer const *a0, string &payload));
+BDL_EXPORT void reg_player_join(void(*)(ServerPlayer *));
+BDL_EXPORT void reg_player_left(void(*)(ServerPlayer *));
+BDL_EXPORT void reg_pickup(bool(*)(Actor *a0, ItemActor *a1));
+BDL_EXPORT void reg_popItem(bool(*)(ServerPlayer &, BlockPos &));
+BDL_EXPORT void reg_mobhurt(bool(*)(Mob &, ActorDamageSource const &, int &));
+BDL_EXPORT void reg_mobdie(void(*)(Mob &, ActorDamageSource const &));
+BDL_EXPORT void reg_actorhurt(bool(*)(Actor &, ActorDamageSource const &, int &));
+BDL_EXPORT void reg_interact(bool(*)(GameMode *, Actor &));
 
 BDL_EXPORT int getPlayerCount();
 BDL_EXPORT int getMobCount();
 
 BDL_EXPORT NetworkIdentifier *getPlayerIden(ServerPlayer &sp);
-BDL_EXPORT ServerPlayer *getuser_byname(const string &a);
+BDL_EXPORT ServerPlayer *getuser_byname(string_view a);
+#define getplayer_byname(x) (getuser_byname(x))
+
 BDL_EXPORT void forceKickPlayer(ServerPlayer &sp);
 
 #define ARGSZ(b)      \
@@ -88,5 +92,51 @@ static inline bool isOp(CommandOrigin const &sp)
 {
     return (int)sp.getPermissionsLevel() > 0;
 }
-
-
+template<typename T,int S=128>
+struct static_deque{
+    T data[S];
+    uint head,tail;
+    T* begin(){
+        return data+head;
+    }
+    T* end(){
+        return data+tail;
+    }
+    void clear(){
+        head=tail=0;
+    }
+    static_deque(){
+        clear();
+    }
+    void push_back(const T& a){
+        data[tail++]=a;
+    }
+    void emplace_back(const T& a){ //dummy
+        data[tail++]=a;
+    }
+    T& top(){
+        return data[head];
+    }
+    void pop_top(){
+        head++;
+    }
+    int size(){
+        return head-tail;
+    }
+};
+int atoi(string_view sv){
+    int res=0;
+    int fg=0;
+    const char* c=sv.data();
+    int sz=sv.size();
+    for(int i=0;i<sz;++i){
+        if(c[i]=='-'){
+            fg=1;
+        }
+        if(!isdigit(c[i])) continue;
+        res*=10;
+        res+=c[i]-'0';
+    }
+    return fg?-res:res;
+}
+#define BDL_TAG "V2019-12-19"

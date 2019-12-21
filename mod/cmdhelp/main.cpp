@@ -37,17 +37,31 @@ struct Timer{
     }
     Timer(){}
 };
+typedef unsigned long STRING_HASH;
+
+STRING_HASH do_hash(string_view x){
+    auto sz=x.size();
+    auto c=x.data();
+    uint hash1=0;uint hash2=0;
+    for(int i=0;i<sz;++i){
+        hash1=(hash1*47+c[i])%1000000007;
+        hash2=(hash2*83+c[i])%1000000009;
+    }
+    return (((STRING_HASH)hash1)<<32)|hash2;
+}
 struct CMDForm{
-    unordered_map<string,CMD> cmds;
+    unordered_map<STRING_HASH,CMD> cmds;
     vector<string> ordered_cmds;
     string content;
     string title;
     void sendTo(ServerPlayer& sp){
         string nm=sp.getName();
-        Form* x=new Form([this,nm](const string& s)->void{
+        Form* x=new Form([this,nm](string_view s)->void{
             //printf("handle %s %s\n",nm.c_str(),s.c_str());
-            if(cmds.count(s))
-                cmds[s].execute(nm);
+            auto hs=do_hash(s);
+            auto it=cmds.find(hs);
+            if(it!=cmds.end())
+                it->second.execute(nm);
         });
         x->setContent(content);
         x->setTitle(title);
@@ -56,7 +70,7 @@ struct CMDForm{
         sendForm(sp,x);
     }
 };
-unordered_map<string,CMDForm> forms;
+unordered_map<STRING_HASH,CMDForm> forms;
 list<Timer> timers;
 struct Oneshot{
     int time;
@@ -70,11 +84,12 @@ struct Oneshot{
 };
 priority_queue<Oneshot> oneshot_timers;
 CMD joinHook;
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     auto nm=b.getName();
     if(a.size()==0) a.emplace_back("root");
-    if(forms.count(a[0])){
-        auto& fm=forms[a[0]];
+    auto hs=do_hash(a[0]);
+    if(forms.count(hs)){
+        auto& fm=forms[hs];
         ServerPlayer* sp=getSP(b.getEntity());
         if(sp){
             fm.sendTo(*sp);
@@ -115,9 +130,11 @@ THook(void*,_ZN5Level4tickEv,Level& a){
 }
 int menuitem;
 using namespace rapidjson;
+//vector<string> gStrPool;
 static void load(){
     timers.clear();
     forms.clear();
+    //gStrPool.clear();
     Document dc;
     char* buf;
     int sz;
@@ -155,10 +172,10 @@ static void load(){
                     }
                     exit(0);
                 }
-                cf.cmds.emplace(string(but[0].GetString()),CMD(but[1].GetString(),but[2].GetString()));
+                cf.cmds.emplace(do_hash(but[0].GetString()),CMD(but[1].GetString(),but[2].GetString()));
                 cf.ordered_cmds.emplace_back(but[0].GetString());
             }
-	forms.emplace(name.GetString(),cf);
+	        forms.emplace(do_hash(name.GetString()),cf);
         }
         if(typ=="timer"){
             timers.emplace_back(x["time"].GetInt(),x["shift"].GetInt(),CMD("",x["cmd"].GetString()));
@@ -174,38 +191,41 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     }
     return 1;
 }
-static void oncmd_sch(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_sch(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if((int)b.getPermissionsLevel()<1) return;
     ARGSZ(3)
-    int dtime=atoi(a[0].c_str());
-    string name=a[1];
-    string chain=a[2];
+    int dtime=atoi(a[0]);
+    string name=string(a[1]);
+    string chain=string(a[2]);
     oneshot_timers.emplace(tkl/20+dtime,name,chain);
     outp.success();
 }
-static void oncmd_runas(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_runas(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if((int)b.getPermissionsLevel()<1) return;
     ARGSZ(1)
     auto sp=getplayer_byname(a[0]);
     if(sp){
-        string cmd;
         int vsz=a.size();
+        char buf[1000];
+        int ptr=0;
         for(int i=1;i<vsz;++i){
-            cmd+=a[i]+" ";
+            memcpy(buf+ptr,a[i].data(),a[i].size());
+            ptr+=a[i].size();
+            buf[ptr++]=' ';
         }
-        runcmdAs(cmd,sp).isSuccess()?outp.success():outp.error("error");
+        runcmdAs({buf,ptr},sp).isSuccess()?outp.success():outp.error("error");
     }else{
         outp.error("Can't find player");
     }
 }
 void mod_init(std::list<string>& modlist){
     load();
-    register_cmd("c",fp(oncmd),"open gui");
-    register_cmd("reload_cmd",fp(load),"reload cmds",1);
-    register_cmd("sched",fp(oncmd_sch),"schedule a delayed cmd",1);
-    register_cmd("runas",fp(oncmd_runas),"run cmd as",1);
+    register_cmd("c",oncmd,"open gui");
+    register_cmd("reload_cmd",load,"reload cmds",1);
+    register_cmd("sched",oncmd_sch,"schedule a delayed cmd",1);
+    register_cmd("runas",oncmd_runas,"run cmd as",1);
     reg_player_join(join);
     reg_useitemon(handle_u);
-    printf("[CMDHelp] loaded! V2019-12-11\n");
+    printf("[CMDHelp] loaded! " BDL_TAG "\n");
     load_helper(modlist);
 }

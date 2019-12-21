@@ -25,8 +25,6 @@
 
 using std::deque;
 using std::string;
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
 #define dbg_printf(...) \
     {                   \
     }
@@ -41,10 +39,11 @@ struct LPOS
 {
     int x, z;
 };
-static std::unordered_map<string, LPOS> startpos, endpos;
-static unordered_map<string, int> choose_state;
+static std::unordered_map<Shash_t, LPOS> startpos, endpos;
+static unordered_map<Shash_t, int> choose_state;
 
 int LAND_PRICE, LAND_PRICE2;
+bool land_tip = true;
 using namespace rapidjson;
 void loadcfg()
 {
@@ -59,178 +58,259 @@ void loadcfg()
     }
     LAND_PRICE = dc["buy_price"].GetInt();
     LAND_PRICE2 = dc["sell_price"].GetInt();
+    if (dc.HasMember("land_tip"))
+        land_tip = dc["land_tip"].GetBool();
     free(buf);
 }
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
-    auto nm=b.getName();
-    bool op=isOp(b);
+static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOutput &outp)
+{
+    auto nm = b.getName();
+    auto sp = getSP(b.getEntity());
+    bool op = isOp(b);
+    SPBuf sb;
     ARGSZ(1)
-    if(a[0]=="exit"){
-        choose_state.erase(nm);
+    if(a[0]=="fix"){
+        db.Del("land_fixed");
+        outp.success("scheduled data fix at next server start");
+        return;
+    }
+    if (a[0] == "exit")
+    {
+        if (!sp)
+            return;
+        choose_state.erase(sp->getNameTagAsHash());
         outp.success("§bExit selection mode, please input /land buy");
     }
-    if(a[0]=="a"){
-        choose_state[nm]=1;
+    if (a[0] == "a")
+    {
+        if (!sp)
+            return;
+        choose_state[sp->getNameTagAsHash()] = 1;
         outp.success("§bEnter selection mode, please click on the ground to select point A");
     }
-    if(a[0]=="b"){
-        choose_state[nm]=2;
+    if (a[0] == "b")
+    {
+        if (!sp)
+            return;
+        choose_state[sp->getNameTagAsHash()] = 2;
         outp.success("§bPlease click on the ground to select point B");
     }
-    if(a[0]=="query"){
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        if(lp){
+    if (a[0] == "query")
+    {
+        auto &pos = b.getEntity()->getPos();
+        int dim = b.getEntity()->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp)
+        {
             char buf[1000];
-            //sprintf(buf,"§bThis is %s's land",lp->owner);
-            snprintf(buf,1000,"§bThis is %s's land",lp->owner);
+            snprintf(buf, 1000, "§bThis is %s's land", lp->owner);
             outp.success(buf);
-        }else{
+        }
+        else
+        {
             outp.error("No land here");
             return;
         }
     }
-    if(a[0]=="buy"){
-        int x,z,dx,dz;
-        int dim=b.getEntity()->getDimensionId();
-        if(startpos.count(nm)+endpos.count(nm)!=2){
+    if (a[0] == "buy")
+    {
+        auto hash = sp->getNameTagAsHash();
+        int x, z, dx, dz;
+        int dim = sp->getDimensionId();
+        if (startpos.count(hash) + endpos.count(hash) != 2)
+        {
             outp.error("Choose 2 points please.");
             return;
         }
-	    choose_state.erase(nm);
-        x=min(startpos[nm].x,endpos[nm].x);
-        z=min(startpos[nm].z,endpos[nm].z);
-        dx=max(startpos[nm].x,endpos[nm].x);
-        dz=max(startpos[nm].z,endpos[nm].z);
+        choose_state.erase(hash);
+        x = min(startpos[hash].x, endpos[hash].x);
+        z = min(startpos[hash].z, endpos[hash].z);
+        dx = max(startpos[hash].x, endpos[hash].x);
+        dz = max(startpos[hash].z, endpos[hash].z);
         //step -1 :sanitize pos
-        if(x < -200000 || z< -200000){
+        if (x < -200000 || z < -200000)
+        {
             outp.error("Pos too small !> -200000 needed");
             return;
         }
         //step 1 check money
-        int deltax=dx-x+1,deltaz=dz-z+1;
-        uint siz=deltax*deltaz;
-        if(deltax>=4096 || deltaz>=4096 || siz>=5000000){
+        int deltax = dx - x + 1, deltaz = dz - z + 1;
+        uint siz = deltax * deltaz;
+        if (deltax >= 4096 || deltaz >= 4096 || siz >= 5000000)
+        {
             outp.error("Too big land");
             return;
         }
-        int price=siz*LAND_PRICE;
-        if(price<=0 || price>=500000000){
+        int price = siz * LAND_PRICE;
+        if (price <= 0 || price >= 500000000)
+        {
             outp.error("Too big land");
             return;
         }
-        auto mon=get_money(nm);
-        if(mon<price){
+        auto mon = get_money(nm);
+        if (mon < price)
+        {
             outp.error("Money not enough");
             return;
         }
         //step 2 check coll
-        for(int i=x;i<=dx;++i)
-        for(int j=z;j<=dz;++j)
-        {
-            auto lp=getFastLand(i,j,dim);
-            if(lp){
-                printf("lp %p\n",lp);
-                outp.error("Land collision detected! hint: "+string(lp->owner,lp->owner_sz)+"'s land");
-                return;
+        for (int i = x; i <= dx; ++i)
+            for (int j = z; j <= dz; ++j)
+            {
+                auto lp = getFastLand(i, j, dim);
+                if (lp)
+                {
+                    sb.write("Land collision detected! hint: ");
+                    sb.write(lp->getOwner());
+                    sb.write("'s land");
+                    outp.error(sb.getstr());
+                    return;
+                }
             }
-        }
         //step 3 add land
-        set_money(nm,mon-price);
-        //printf("last step\n");
-        addLand(to_lpos(x),to_lpos(dx),to_lpos(z),to_lpos(dz),dim,nm);
+        set_money(nm, mon - price);
+        addLand(to_lpos(x), to_lpos(dx), to_lpos(z), to_lpos(dz), dim, nm);
         outp.success("§bSuccessful land purchase");
     }
-    if(a[0]=="sell"){
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        printf("dim %d\n",dim);
-        if(lp && (lp->chkOwner(nm)==2||op)){
-            int siz=(lp->dx-lp->x)*(lp->dz-lp->z);
-            add_money(nm,siz*LAND_PRICE2);
+    if (a[0] == "sell")
+    {
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp && (lp->chkOwner(nm) == 2 || op))
+        {
+            int siz = (lp->dx - lp->x) * (lp->dz - lp->z);
+            add_money(nm, siz * LAND_PRICE2);
             removeLand(lp);
             outp.success("§bYour land has been sold");
-        }else{
+        }
+        else
+        {
             outp.error("No land here or not your land");
             return;
         }
     }
-    if(a[0]=="trust"){
+    if (a[0] == "trust")
+    {
         ARGSZ(2)
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        if(lp && (lp->chkOwner(nm)==2||op)){
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp && (lp->chkOwner(nm) == 2 || op))
+        {
             DataLand dl;
-            Fland2Dland(lp,dl);
+            Fland2Dland(lp, dl);
             dl.addOwner(a[1]);
             updLand(dl);
-            outp.success("§bMake "+a[1]+" a trusted player");
-        }else{
+            sb.write("§bMake ");
+            sb.write(a[1]);
+            sb.write(" a trusted player");
+            outp.success(sb.getstr());
+        }
+        else
+        {
             outp.error("No land here or not your land");
             return;
         }
     }
-    if(a[0]=="untrust"){
+    if (a[0] == "untrust")
+    {
         ARGSZ(2)
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        if(lp && (lp->chkOwner(nm)==2||op)){
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp && (lp->chkOwner(nm) == 2 || op))
+        {
             DataLand dl;
-            Fland2Dland(lp,dl);
+            Fland2Dland(lp, dl);
             dl.delOwner(a[1]);
             updLand(dl);
-            outp.success("§bMake "+a[1]+" a distrust player");
-        }else{
+            sb.write("§bMake ");sb.write(a[1]);sb.write(" a distrust player");
+            outp.success(sb.getstr());
+        }
+        else
+        {
             outp.error("No land here or not your land");
             return;
         }
     }
-    if(a[0]=="perm"){
+    if (a[0] == "perm")
+    {
         ARGSZ(2)
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        if(lp && (lp->chkOwner(nm)==2 || op)){
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp && (lp->chkOwner(nm) == 2 || op))
+        {
             DataLand dl;
-            Fland2Dland(lp,dl);
-            dl.perm=(LandPerm)atoi(a[1].c_str());
+            Fland2Dland(lp, dl);
+            dl.perm = (LandPerm)atoi(a[1]);
             updLand(dl);
             outp.success("§bChange permissions successfully");
-        }else{
+        }
+        else
+        {
             outp.error("No land here or not your land");
             return;
         }
     }
-    if(a[0]=="give"){
+    if (a[0] == "give")
+    {
         ARGSZ(2)
-        auto& pos=b.getEntity()->getPos();
-        int dim=b.getEntity()->getDimensionId();
-        auto lp=getFastLand(pos.x,pos.z,dim);
-        if(lp && (lp->chkOwner(nm)==2||op)){
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        auto lp = getFastLand(pos.x, pos.z, dim);
+        if (lp && (lp->chkOwner(nm) == 2 || op))
+        {
             DataLand dl;
-            Fland2Dland(lp,dl);
-            dl.addOwner(a[1],true);
+            Fland2Dland(lp, dl);
+            dl.addOwner(a[1], true);
             dl.delOwner(nm);
             updLand(dl);
-            outp.success("§bSuccessfully give your territory to "+a[1]);
-        }else{
+            sb.write("§bSuccessfully give your territory to ");sb.write(a[1]);
+            outp.success(sb.getstr());
+        }
+        else
+        {
             outp.error("No land here or not your land");
             return;
         }
+    }
+    if (a[0] == "forceperm")
+    {
+        ARGSZ(2)
+        if (!op)
+            return;
+        auto newperm = (LandPerm)atoi(a[1]);
+        iterLands([newperm](DataLand &dl) {
+            dl.perm = newperm;
+        });
+        outp.success("okay");
+    }
+    if (a[0] == "dumpall")
+    {
+        if (!op)
+            return;
+        iterLands_const([&](const DataLand &dl) {
+            char buf[1000];
+            snprintf(buf, 1000, "owner %s pos %d %d -> %d %d dim %d perm %d", dl.owner.c_str(), dl.x, dl.z, dl.dx, dl.dz, dl.dim, dl.perm);
+            outp.addMessage(buf);
+        });
+        outp.success("okay");
     }
     if (a[0] == "trustgui")
     {
         string name = b.getName();
-        auto sp = getSP(b.getEntity());
         if (sp)
-            gui_ChoosePlayer(sp, "Choose players to trust", "Trust", [name](const string &dest) {
+            gui_ChoosePlayer(sp, "Choose players to trust", "Trust", [name](string_view dest) {
                 auto xx = getplayer_byname(name);
-                if (xx)
-                    runcmdAs("land trust " + SafeStr(dest), xx);
+                if (xx){
+                    SPBuf sb;
+                    sb.write("land trust \"");
+                    sb.write(dest);
+                    sb.write("\"");
+                    runcmdAs(sb.get(), xx);
+                }
             });
         else
         {
@@ -253,11 +333,13 @@ void CONVERT(char *b, int s)
         int x, y, dx, dy, dim;
         string owner;
         ds2 >> dim >> x >> y >> dx >> dy >> owner;
-        dx=x+dx-1;dy=y+dy-1;
+        dx = x + dx - 1;
+        dy = y + dy - 1;
         dim >>= 4;
-        printf("land %d %d %d %d %d %s\n",x,y,dx,dy,dim,owner.c_str());
-        if(x< -200000 || y< -200000 || dx< -200000 || dy< -200000){
-            printf("refuse to add land %s\n",owner.c_str());
+        printf("land %d %d %d %d %d %s\n", x, y, dx, dy, dim, owner.c_str());
+        if (x < -200000 || y < -200000 || dx < -200000 || dy < -200000)
+        {
+            printf("refuse to add land %s\n", owner.c_str());
             continue;
         }
         addLand(to_lpos(x), to_lpos(dx), to_lpos(y), to_lpos(dy), dim, owner);
@@ -279,24 +361,27 @@ static void load()
     }
 }
 
-static int handle_dest(GameMode *a0, BlockPos const *a1)
+static void NoticePerm(FastLand* fl,ServerPlayer* sp){
+    SPBuf sb;
+    sb.write("§cThis is ");
+    sb.write(fl->getOwner());
+    sb.write("'s land");
+    sendText(sp, sb.get(), POPUP);
+}
+static bool handle_dest(GameMode *a0, BlockPos const *a1)
 {
     ServerPlayer *sp = a0->getPlayer();
     if (isOp(sp))
         return 1;
     int x(a1->x), z(a1->z), dim(sp->getDimensionId());
-    string name = sp->getName();
-    if (likely(generic_perm(x, z, dim, PERM_BUILD, name)))
+    FastLand *fl = getFastLand(x, z, dim);
+    if (!fl || fl->hasPerm(sp->getName(), PERM_BUILD))
     {
         return 1;
     }
     else
     {
-        char buf[1000];
-        FastLand *fl = getFastLand(x, z, dim);
-        //sprintf(buf, "§cThis is %s's land", fl->owner);
-        snprintf(buf,1000,"§cThis is %s's land",fl->owner);
-        sendText(sp, buf, POPUP);
+        NoticePerm(fl,sp);
         return 0;
     }
 }
@@ -311,19 +396,15 @@ static bool handle_attack(Actor &vi, ActorDamageSource const &src, int &val)
         if (!sp || isOp(sp))
             return 1;
         auto &pos = vi.getPos();
-        int x(pos.x),z(pos.z),dim(vi.getDimensionId());
-        auto name=sp->getName();
-        if (likely(generic_perm(x, z, dim, PERM_ATK, name)))
+        int x(pos.x), z(pos.z), dim(vi.getDimensionId());
+        FastLand *fl = getFastLand(x, z, dim);
+        if (!fl || fl->hasPerm(sp->getName(), PERM_ATK))
         {
             return 1;
         }
         else
         {
-            char buf[1000];
-            FastLand *fl = getFastLand(x, z, dim);
-            //sprintf(buf, "§cThis is %s's land", fl->owner);
-            snprintf(buf,1000,"§cThis is %s's land",fl->owner);
-            sendText(sp, buf, POPUP);
+            NoticePerm(fl,sp);
             return 0;
         }
     }
@@ -334,61 +415,64 @@ static bool handle_inter(GameMode *a0, Actor &a1)
     ServerPlayer *sp = a0->getPlayer();
     if (isOp(sp))
         return 1;
-    auto& pos = a1.getPos();
+    auto &pos = a1.getPos();
     int x(pos.x), z(pos.z), dim(a1.getDimensionId());
-    string name = sp->getName();
-    if (likely(generic_perm(x, z, dim, PERM_INTERWITHACTOR, name)))
+    FastLand *fl = getFastLand(x, z, dim);
+    if (!fl || fl->hasPerm(sp->getName(), PERM_INTERWITHACTOR))
     {
         return 1;
     }
     else
     {
-        char buf[1000];
-        FastLand *fl = getFastLand(x, z, dim);
-        //sprintf(buf, "§cThis is %s's land", fl->owner);
-        snprintf(buf,1000,"§cThis is %s's land", fl->owner);
-        sendText(sp, buf, POPUP);
+        NoticePerm(fl,sp);
         return 0;
     }
 }
 static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5)
 {
-    ServerPlayer* sp=a0->getPlayer();
-    auto name=sp->getName();
-    if (choose_state[name] != 0)
+    ServerPlayer *sp = a0->getPlayer();
+    auto hash = sp->getNameTagAsHash();
+    if (choose_state[hash] != 0)
     {
-        if (choose_state[name] == 1)
+        if (choose_state[hash] == 1)
         {
-            startpos[name] = {a2->x,a2->z};
+            startpos[hash] = {a2->x, a2->z};
             sendText(sp, "§bPoint A selected");
         }
-        if (choose_state[name] == 2)
+        if (choose_state[hash] == 2)
         {
-            endpos[name] = {a2->x, a2->z};
+            endpos[hash] = {a2->x, a2->z};
             char buf[1000];
-            auto siz=abs(startpos[name].x-endpos[name].x+1)*abs(startpos[name].z-endpos[name].z+1);
+            auto siz = (abs(startpos[hash].x - endpos[hash].x) + 1) * (abs(startpos[hash].z - endpos[hash].z) + 1);
             //sprintf(buf,"§bPoint B selected,size: %d price: %d",siz,siz*LAND_PRICE);
-            snprintf(buf,1000,"§bPoint B selected,size: %d price: %d",siz,siz*LAND_PRICE);
+            snprintf(buf, 1000, "§bPoint B selected,size: %d price: %d", siz, siz * LAND_PRICE);
             sendText(sp, buf);
         }
         return 0;
     }
-    if(isOp(sp)) return 1;
-    int x(a2->x),z(a2->z),dim(sp->getDimensionId());
-    LandPerm pm;
-    if(a1->isNull()){
-        pm=PERM_USE;
-    }else{
-        pm=PERM_BUILD;
-    }
-    if(generic_perm(x,z,dim,pm,name) && generic_perm(dstPos->x,dstPos->z,dim,pm,name)){
+    if (isOp(sp))
         return 1;
-    }else{
-        char buf[1000];
-        FastLand *fl = getFastLand(x, z, dim);
-        //sprintf(buf, "§cThis is %s's land", fl->owner);
-        snprintf(buf,1000,"§cThis is %s's land",fl->owner);
-        sendText(sp, buf, POPUP);
+    int x(a2->x), z(a2->z), dim(sp->getDimensionId());
+    LandPerm pm;
+    if (a1->isNull())
+    {
+        pm = PERM_USE;
+    }
+    else
+    {
+        pm = PERM_BUILD;
+    }
+    FastLand *fl = getFastLand(x, z, dim), *fl2 = getFastLand(dstPos->x, dstPos->z, dim);
+    if (!fl && !fl2)
+        return 1;
+    auto name = sp->getName();
+    if ((!fl || fl->hasPerm(name, pm)) && (!fl2 || fl2->hasPerm(name, pm)))
+    {
+        return 1;
+    }
+    else
+    {
+        NoticePerm(fl,sp);
         return 0;
     }
 }
@@ -397,29 +481,72 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
     if (isOp(&sp))
         return 1;
     int x(bpos.x), z(bpos.z), dim(sp.getDimensionId());
-    string name = sp.getName();
-    if (likely(generic_perm(x, z, dim, PERM_POPITEM, name)))
+    FastLand *fl = getFastLand(x, z, dim);
+    if (!fl || fl->hasPerm(sp.getName(), PERM_POPITEM))
     {
         return 1;
     }
     else
     {
-        char buf[1000];
-        FastLand *fl = getFastLand(x, z, dim);
-        //sprintf(buf, "§bThis is %s's land", fl->owner);
-        snprintf(buf,1000,"§bThis is %s's land",fl->owner);
-        sendText(&sp, buf, POPUP);
+        NoticePerm(fl,&sp);
         return 0;
     }
 }
+unordered_map<Shash_t, string> lastland;
+THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned long const *tk)
+{
+    if (!land_tip)
+        return original(sp, tk);
+    if (*tk % 16 == 0)
+    {
+        auto hash = sp->getNameTagAsHash();
+        auto &oldname = lastland[hash];
+        auto &pos = sp->getPos();
+        int dim = sp->getDimensionId();
+        FastLand *fl = getFastLand(pos.x, pos.z, dim);
+        string_view newname;
+        if (fl)
+        {
+            newname = string_view(fl->owner,fl->owner_sz);
+        }
+        if (oldname != newname)
+        {
+            /*if (oldname == "")
+            {
+                SPBuf sb;
+                sb.write("You entered ");sb.write(newname);sb.write("'s land!");
+                sendText(sp, sb.get(), TextType::RAW);
+            }
+            else
+            {
+                SPBuf sb;
+                sb.write("You lefted ");sb.write(string_view(oldname));sb.write("'s land!");
+                sendText(sp, sb.get(), TextType::RAW);
+            }*/
+            SPBuf sb;
+            if(newname==""){
+                sb.write("You lefted ");sb.write(string_view(oldname));sb.write("'s land!");
+            }else{
+                sb.write("You entered ");sb.write(newname);sb.write("'s land!");
+            }
+            sendText(sp, sb.get(), TextType::RAW);
+            oldname = newname;
+        }
+    }
+    return original(sp, tk);
+}
 void mod_init(std::list<string> &modlist)
 {
-    printf("[LAND] loaded! V2019-12-14\n");
+    printf("[LAND] loaded! " BDL_TAG "\n");
     load();
     loadcfg();
-    init_cache();
-    register_cmd("land", (void *)oncmd, "land command");
-    register_cmd("reload_land", fp(loadcfg), "reload land cfg", 1);
+    string dummy;
+    if(!db.Get("land_fixed",dummy)){
+        CHECK_AND_FIX_ALL();
+        db.Put("land_fixed",dummy);
+    }
+    register_cmd("land", oncmd, "land command");
+    register_cmd("reload_land", loadcfg, "reload land cfg", 1);
     reg_destroy(handle_dest);
     reg_useitemon(handle_useion);
     reg_actorhurt(handle_attack);

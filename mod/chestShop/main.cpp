@@ -251,7 +251,7 @@ cid 0 flg 0 src 0 slot 2 get 0 0 x (0)@0 64 x Chest(54)@0
 */
 }
 
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp){
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
     ARGSZ(1)
     auto name=b.getName();
     if(a[0]=="buy"){
@@ -271,7 +271,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
     if(a[0]=="sell"){
         ARGSZ(2)
-        int price=atoi(a[1].c_str());
+        int price=atoi(a[1]);
         if(price<=0){
             outp.error("money must >0");
             return;
@@ -308,6 +308,6 @@ void mod_init(std::list<string>& modlist){
     reg_useitemon(handle_u);
     register_shutdown(fp(r_save));
     printf("[ChestShop] Loaded\n");
-    register_cmd("cshop",fp(oncmd));
+    register_cmd("cshop",oncmd);
     load_helper(modlist);
 }

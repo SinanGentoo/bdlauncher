@@ -9,11 +9,11 @@ extern "C" {
 }
 extern void load_helper(std::list<string>& modlist);
 LDBImpl db("data_v2/vars");
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if(a[0]=="ls"){
         if(a.size()==1) a.push_back(b.getName());
-        string& name=a[1];
+        string name(a[1]);
         string val;
         DataStream ds;
         unordered_map<string,int> list;
@@ -30,9 +30,9 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     if(!isOp(b)) return;
     if(a[0]=="set"){
         ARGSZ(4)
-        string& name=a[1];
-        string& key=a[2];
-        string& op=a[3];
+        string name(a[1]);
+        string key(a[2]);
+        string op(a[3]);
         int vv=0;
         string val;
         unordered_map<string,int> list;
@@ -51,10 +51,10 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
     if(a[0]=="test"){
         ARGSZ(5)
-        string& name=a[1];
-        string& key=a[2];
-        string& op=a[3];
-        int op2=atoi(a[4].c_str());
+        string name(a[1]);
+        string key(a[2]);
+        string op(a[3]);
+        int op2=atoi(a[4]);
         int vv=0;
         string val;
         DataStream ds;
@@ -112,7 +112,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
 }
 void mod_init(std::list<string>& modlist){
-    register_cmd("var",fp(oncmd),"manage player vars");
+    register_cmd("var",oncmd,"manage player vars");
     printf("[Vars] loaded! V2019-12-14\n");
     load_helper(modlist);
 }

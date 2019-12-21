@@ -22,49 +22,50 @@ extern "C" {
 }
 
 //export APIS
-void split_string(const std::string& s, std::vector<std::string>& v, const std::string& c)
+void split_string(string_view s, std::vector<std::string_view>& v, string_view c)
 {
   std::string::size_type pos1, pos2;
   pos2 = s.find(c);
   pos1 = 0;
   while(std::string::npos != pos2)
   {
-    v.emplace_back(s.substr(pos1, pos2-pos1));
+    v.emplace_back(s.data()+pos1,pos2-pos1); //s.substr(pos1, pos2-pos1)
     pos1 = pos2 + c.size();
     pos2 = s.find(c, pos1);
   }
   if(pos1 != s.length())
-    v.emplace_back(s.substr(pos1));
+    v.emplace_back(s.data()+pos1,s.size()-pos1);
 }
-bool execute_cmd_random(const vector<string>& chain){
+bool execute_cmd_random(const vector<string_view>& chain){
     int rd=rand()%chain.size();
     return execute_cmdchain(chain[rd],"",false);
 }
 
-bool execute_cmdchain(string chain,string sp,bool chained){  
-    if(sp.size()){
-        if(sp[0]!='"') sp="\""+sp+"\"";
-        char buf[8192];
-        const char* src=chain.data();
-        int bufsz=0;
-        for(int i=0;i<chain.size();++i){
-            if(memcmp(src+i,"%name%",6)==0){
-                memcpy(buf+bufsz,sp.data(),sp.size());
-		        bufsz+=sp.size();
-                i+=5;
-            }else{
-                buf[bufsz++]=src[i];
-            }
+bool execute_cmdchain(string_view chain,string_view sp,bool chained){  
+    auto fg=false;
+    if(sp[0]!='"') fg=1;
+    char buf[8192];
+    const char* src=chain.data();
+    int bufsz=0;
+    for(int i=0;i<chain.size();++i){
+        if(memcmp(src+i,"%name%",6)==0){
+            if(fg) buf[bufsz++]='"';
+            memcpy(buf+bufsz,sp.data(),sp.size());
+            bufsz+=sp.size();
+            if(fg) buf[bufsz++]='"';
+            i+=5;
+        }else{
+            buf[bufsz++]=src[i];
         }
-        chain=string(buf,bufsz);
     }
-    if(chain[0]=='!'){
-        vector<string> dst;
-        split_string(chain.substr(1),dst,";");
+    auto chainxx=string_view(buf,bufsz);
+    if(chainxx[0]=='!'){
+        vector<string_view> dst;
+        split_string(chainxx.substr(1),dst,";");
         return execute_cmd_random(dst);
     }
-    vector<string> dst;
-    split_string(chain,dst,",");
+    vector<string_view> dst;
+    split_string(chainxx,dst,",");
     for(auto& i:dst){
         auto res=runcmd(i);
         if(!res.isSuccess() && chained) return false;
@@ -99,22 +100,24 @@ struct TeleportCommand {
             this.putString(this.platformChatId);
     }*/
 struct MyTxtPk{
-    const string* str;
+    string_view str;
     TextType type;
     MyPkt* pk;
-    void setText(const string& ct,TextType typ){
-        str=&ct;
+    void setText(string_view ct,TextType typ){
+        str=ct;
         type=typ;
     }
     MyTxtPk(){
         pk=new MyPkt(0x9,[this](void*,BinaryStream& bs){
             bs.writeByte(this->type);
             bs.writeBool(false);
-            bs.writeUnsignedVarInt(this->str->size());
-            bs.write(this->str->data(),this->str->size());
+            bs.writeUnsignedVarInt(this->str.size());
+            bs.write(this->str.data(),this->str.size());
+            bs.writeUnsignedInt64(0);
+            /*
             bs.writeUnsignedVarInt(0);
             bs.writeUnsignedVarInt(0);//padding
-            bs.writeUnsignedVarInt(0);
+            bs.writeUnsignedVarInt(0);*/
         });
     }
     void send(Player* p){
@@ -122,17 +125,10 @@ struct MyTxtPk{
     }
 };
 MyTxtPk gTextPkt;
-void sendText(Player* a,const string& ct,TextType type) {
-    /*TextPacket pk=TextPacket::createRaw(ct);
-    ((ServerPlayer*)a)->sendNetworkPacket(pk);*/
+void sendText(Player* a,string_view ct,TextType type) {
     gTextPkt.setText(ct,type);
     gTextPkt.send(a);
 }
-/*
-void sendText2(Player* a,string ct) {
-    TextPacket pk=TextPacket::createJukeboxPopup(ct);
-    ((ServerPlayer*)a)->sendNetworkPacket(pk);
-}*/
 
 static TeleportCommand cmd_p;
 
@@ -164,7 +160,7 @@ Player* getplayer_byname(const string& name) {
 }*/
 
 #define fcast(a,b) (*((a*)(&b)))
-Player* getplayer_byname2(const string& name) {
+Player* getplayer_byname2(string_view name) {
     Level* lv=getSrvLevel();
     Player* rt=NULL;
     lv->forEachPlayer([&](Player& tg)->bool{
@@ -240,7 +236,7 @@ int getMobCount(){
 NetworkIdentifier* getPlayerIden(ServerPlayer& sp){
     return access(&sp,NetworkIdentifier*,2952);
 }
-ServerPlayer* getuser_byname(const string& a){
+ServerPlayer* getuser_byname(string_view a){
     auto vc=getSrvLevel()->getUsers();
     for(auto& i:*vc){
         if(i->getName()==a) return i.get();
@@ -254,7 +250,7 @@ void forceKickPlayer(ServerPlayer& sp){
 void mod_init(list<string>& modlist)
 {
     mkdir("data_v2",S_IRWXU);
-    printf("[MOD/BASE] loaded! V2019-12-14\n");   	
+    printf("[MOD/BASE] loaded! " BDL_TAG "\n");   	
     set_int_handler(fp(autostop));		
     load_helper(modlist);
 }

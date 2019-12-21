@@ -40,9 +40,9 @@ static void loaddata(const char* fn){
 extern "C"{
     Packet* _ZNK16MapItemSavedData17getFullDataPacketEv(MapItemSavedData*,char*);
 };
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
-    string datname=a[0];
+    string datname=string(a[0]);
     Player& pl=*(Player*)b.getEntity();
     auto& xx=pl.getCarriedItem().getUserData();
     MapItemSavedData& data=getMC()->getLevel()->getMapSavedData(xx);
@@ -55,7 +55,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     outp.success("okay!rejoin server to see new map");
 }
 void mod_init(std::list<string>& modlist) {
-    printf("[CustomMap] loaded! V2019-12-14\n");
-    register_cmd("map",(void*)oncmd,"CustomMap",1);
+    printf("[CustomMap] loaded! " BDL_TAG "\n");
+    register_cmd("map",oncmd,"CustomMap",1);
     load_helper(modlist);
 }

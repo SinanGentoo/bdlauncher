@@ -414,10 +414,12 @@ public:
     BlockSource *getBlockSource();
 };
 class Mob;
+typedef unsigned long Shash_t;
 class Actor : public TickingArea
 {
 public:
     const std::string &getNameTag() const;
+    Shash_t getNameTagAsHash() const;
     Vec3 const &getPos() const;
     bool isRiding() const;
     std::vector<MobEffect> &getAllEffects() const;

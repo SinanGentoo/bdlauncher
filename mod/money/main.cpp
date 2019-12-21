@@ -66,18 +66,18 @@ void loadcfg(){
     INIT_MONEY=dc["init_money"].GetInt();
     free(buf);
 }
-int get_money(const string& pn) {
+int get_money(string_view pn) {
     //lazy init
     string val;
     auto succ=db.Get(pn,val);
     if(!succ) return INIT_MONEY;
     return access(val.data(),int,0);
 }
-void set_money(const string& pn,int am) {
+void set_money(string_view pn,int am) {
     string val((char*)&am,4);
     db.Put(pn,val);
 }
-bool red_money(const string& pn,int am) {
+bool red_money(string_view pn,int am) {
     int mo=get_money(pn);
     if(mo>=am) {
         set_money(pn,mo-am);
@@ -88,10 +88,10 @@ bool red_money(const string& pn,int am) {
     }
 
 }
-void add_money(const string& pn,int am) {
+void add_money(string_view pn,int am) {
     red_money(pn,-am);
 }
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if(a[0]=="query") {
         string dst;
@@ -114,10 +114,10 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int amo;
         if(a.size()==3) {
             dst=a[1];
-            amo=atoi(a[2].c_str());
+            amo=atoi(a[2]);
         } else {
             dst=b.getName();
-            amo=atoi(a[1].c_str());
+            amo=atoi(a[1]);
         }
         set_money(dst,amo);
         char buf[1024];
@@ -132,15 +132,14 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int amo;
         if(a.size()==3) {
             dst=a[1];
-            amo=atoi(a[2].c_str());
+            amo=atoi(a[2]);
         } else {
             dst=b.getName();
-            amo=atoi(a[1].c_str());
+            amo=atoi(a[1]);
         }
         add_money(dst,amo);
         char buf[1024];
-        //sprintf(buf,"§bAdded %d money to %s",amo,dst.c_str());
-        snprintf(buf,1024,"§bAdded %d money to %s",amo,dst.c_str());
+        snprintf(buf,1024,"§bAdded %d money for %s",amo,dst.c_str());
         outp.success(string(buf));
                 auto dstp=getplayer_byname(dst);
                 if(dstp)
@@ -153,10 +152,10 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int amo;
         if(a.size()==3) {
             dst=a[1];
-            amo=atoi(a[2].c_str());
+            amo=atoi(a[2]);
         } else {
             dst=b.getName();
-            amo=atoi(a[1].c_str());
+            amo=atoi(a[1]);
         }
         if(red_money(dst,amo)) {
             outp.success("§bDeducted successfully");
@@ -175,7 +174,7 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
         int mon;
         pl=b.getName();
         pl2=a[1];
-        mon=atoi(a[2].c_str());
+        mon=atoi(a[2]);
         if(mon<=0||mon>50000) {
             outp.error(M_PAY_STR);
         } else {
@@ -195,13 +194,23 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
     if(a[0]=="paygui"){
         string nm=b.getName();
-        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Pay",[nm](const string& chosen){
+        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Pay",[nm](string_view chosen){
             auto p=getplayer_byname(nm);
             if(p){
-                gui_GetInput((ServerPlayer*)p,"How much do you pay for "+chosen+"?","Pay",[chosen,nm](const string& mon){
+                SPBuf sb;
+                sb.write("How much do you pay to ");
+                sb.write(chosen);
+                sb.write("?");
+                gui_GetInput((ServerPlayer*)p,sb.get(),"Pay",[chosen,nm](string_view mon){
                     auto p=getplayer_byname(nm);
-                    if(p)
-                        runcmdAs("money pay \""+chosen+"\" "+mon,p);
+                    if(p){
+                        SPBuf sb;
+                        sb.write("money pay \"");
+                        sb.write(chosen);
+                        sb.write("\" ");
+                        sb.write(mon);
+                        runcmdAs(sb.get(),p);
+                    }
                 });
             }
         });
@@ -209,10 +218,10 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
 }
 
 void mod_init(std::list<string>& modlist) {
-    printf("[MONEY] loaded! V2019-12-14\n");
+    printf("[MONEY] loaded! " BDL_TAG "\n");
     load();
     loadcfg();
-    register_cmd("money",(void*)oncmd,"money command");
-    register_cmd("reload_money",(void*)loadcfg,"reload money cfg",1);
+    register_cmd("money",oncmd,"money command");
+    register_cmd("reload_money",loadcfg,"reload money cfg",1);
     load_helper(modlist);
 }

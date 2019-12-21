@@ -52,5 +52,6 @@ struct init_d {
     init_d() {
         printf("[MOD] inject to %p pid %d\n",main,getpid());
         old_main=MyHook(fp(main),fp(mc_entry));
+        setenv("LD_PRELOAD","",1);
     }
 } _dummy;

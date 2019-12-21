@@ -1,19 +1,22 @@
 #pragma once
+#include"stkbuf.hpp"
 #include <leveldb/db.h>
 #include <string>
 #include <cstdio>
 #include <functional>
 #include <cstdlib>
+#include<string_view>
 #include <cstring>
 using std::function;
 using std::string;
+using std::string_view;
+using leveldb::Slice;
 struct LDBImpl
 {
     leveldb::DB *db;
     leveldb::ReadOptions rdopt;
     leveldb::WriteOptions wropt;
-    LDBImpl(const char *name, bool read_cache=true)
-    {
+    void load(const char *name, bool read_cache=true){
         rdopt = leveldb::ReadOptions();
         wropt = leveldb::WriteOptions();
         rdopt.fill_cache = read_cache;
@@ -27,35 +30,47 @@ struct LDBImpl
         }
         assert(status.ok());
     }
-    ~LDBImpl()
+    LDBImpl(const char *name, bool read_cache=true)
     {
+        load(name,read_cache);
+    }
+    void close(){
         delete db;
     }
-    bool Get(const string &key, string &val) const
+    ~LDBImpl()
     {
-        auto s = db->Get(rdopt, key, &val);
+        close();
+    }
+    bool Get(string_view key, string &val) const
+    {
+        auto s = db->Get(rdopt, Slice(key.data(),key.size()), &val);
         return s.ok();
     }
-    void Put(const string &key, const string &val)
+    void Put(string_view key, string_view val)
     {
-        auto s = db->Put(wropt, key, val);
+        auto s = db->Put(wropt, Slice(key.data(),key.size()), Slice(val.data(),val.size()));
         if (!s.ok())
         {
             printf("[DBError] %s\n", s.ToString().c_str());
         }
     }
-    bool Del(const string &key)
+    bool Del(string_view key)
     {
-        auto s = db->Delete(wropt, key);
+        auto s = db->Delete(wropt, Slice(key.data(),key.size()));
         return s.ok();
     }
-    void Iter(function<void(const string &, const string &)> fn) const
-    {
+    void Iter(function<void(string_view, string_view)> fn) const
+    {   
         leveldb::Iterator *it = db->NewIterator(rdopt);
         for (it->SeekToFirst(); it->Valid(); it->Next())
         {
-            fn(it->key().ToString(), it->value().ToString());
+            auto k=it->key();
+            auto v=it->value();
+            fn({k.data(),k.size()},{v.data(),v.size()});
         }
         delete it;
+    }
+    void CompactAll(){
+        db->CompactRange(nullptr,nullptr);
     }
 };

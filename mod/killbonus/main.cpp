@@ -55,9 +55,9 @@ void handle_die(Mob& a,ActorDamageSource const& b){
 }
 void mod_init(std::list<string>& modlist) {
     load();
-    register_cmd("reload_kbonus",fp(load),"reload kill bonus",1);
-    register_cmd("dbg_kbonus",fp(toggle_dbg),"debug kill bonus",1);
+    register_cmd("reload_kbonus",load,"reload kill bonus",1);
+    register_cmd("dbg_kbonus",toggle_dbg,"debug kill bonus",1);
     reg_mobdie(handle_die);
-    printf("[KillBonus] Loaded V2019-12-11\n");
+    printf("[KillBonus] Loaded " BDL_TAG "\n");
     load_helper(modlist);
 }

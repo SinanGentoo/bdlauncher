@@ -39,21 +39,21 @@ using std::unordered_map;
 unordered_map<int,BaseForm*> id_forms;
 struct GUIPK{
     MyPkt* pk;
-    const string* fm;
+    string_view fm;
     int id;
     GUIPK(){
         pk=new MyPkt(100,[this](void* x,BinaryStream& b)->void{
             b.writeUnsignedVarInt(id);
-            b.writeUnsignedVarInt(fm->size());
-            b.write(fm->data(),fm->size());
+            b.writeUnsignedVarInt(fm.size());
+            b.write(fm.data(),fm.size());
         });
     }
-    void send(ServerPlayer& sp,const string& st,int i){
-        fm=&st,id=i;
+    void send(ServerPlayer& sp,string_view st,int i){
+        fm=st,id=i;
         sp.sendNetworkPacket(*pk);
     }
 } gGUIPK;
-static void sendStr(ServerPlayer& sp,string& fm,int id){
+static void sendStr(ServerPlayer& sp,string_view fm,int id){
     gGUIPK.send(sp,fm,id);
 }
 int autoid;
@@ -70,8 +70,8 @@ BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm){
     id_forms[autoid]=fm;
     sendStr(sp,x,fm->getid());
 }
-BDL_EXPORT void sendForm(const string& sp,BaseForm* fm){
-    auto x=getSrvLevel()->getPlayer(sp);
+BDL_EXPORT void sendForm(string_view sp,BaseForm* fm){
+    auto x=getplayer_byname(sp);
     if(x)
     sendForm(*x,fm);
 }
@@ -89,7 +89,7 @@ THook(void*,_ZN20ServerNetworkHandler6handleERK17NetworkIdentifierRK23ModalFormR
     return nullptr;
 }
 
-void gui_ChoosePlayer(ServerPlayer* sp,const string& text,const string& title,std::function<void(const string&)> cb){
+void gui_ChoosePlayer(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb){
     vector<string> names;
     get_player_names(names);
     Form* fm=new Form(cb);
@@ -100,13 +100,13 @@ void gui_ChoosePlayer(ServerPlayer* sp,const string& text,const string& title,st
     }
     sendForm(*sp,fm);
 }
-void gui_GetInput(ServerPlayer* sp,const string& text,const string& title,std::function<void(const string&)> cb){
+void gui_GetInput(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb){
     SimpleInput* fm=new SimpleInput(title,cb);
     fm->addInput(text);
     sendForm(*sp,fm);
 }
-void gui_Buttons(ServerPlayer* sp,const string& text,const string& title,const list<pair<string,std::function<void()> > >* li){
-    Form* fm=new Form([li](const string& x)->void{
+void gui_Buttons(ServerPlayer* sp,string_view text,string_view title,const list<pair<string,std::function<void()> > >* li){
+    Form* fm=new Form([li](string_view x)->void{
         for(const auto& i:*li){
             if(i.first==x){
                 i.second();
@@ -114,6 +114,8 @@ void gui_Buttons(ServerPlayer* sp,const string& text,const string& title,const l
                 return;
             }
         }
+        delete li;
+        return;
     });
     fm->setTitle(title);
     fm->setContent(text);
@@ -123,6 +125,6 @@ void gui_Buttons(ServerPlayer* sp,const string& text,const string& title,const l
     sendForm(*sp,fm);
 }
 void mod_init(std::list<string>& modlist) {
-    printf("[GUI] Loaded V2019-12-11\n");
+    printf("[GUI] Loaded " BDL_TAG "\n");
     load_helper(modlist);
 }

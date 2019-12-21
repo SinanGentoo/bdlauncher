@@ -49,6 +49,6 @@ void mod_init(std::list<string>& modlist) {
     if(NoFarm){
         MyHook(getfn("_ZNK9FarmBlock15transformOnFallER11BlockSourceRK8BlockPosP5Actorf"),fp(dummy));
     }
-    printf("[WorldProtect] Loaded V2019-12-14\n");
+    printf("[WorldProtect] Loaded " BDL_TAG "\n");
     load_helper(modlist);
 }

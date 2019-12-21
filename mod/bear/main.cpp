@@ -114,24 +114,24 @@ static bool hkc(ServerPlayer const * b,string& c) {
     async_log("[CHAT]%s: %s\n",b->getName().c_str(),c.c_str());
     return 1;
 }
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
-        auto tim=a.size()==1?0:(time(0)+atoi(a[1].c_str()));
+        auto tim=a.size()==1?0:(time(0)+atoi(a[1]));
         ban_data.Put(a[0],string((char*)&tim,4));
-        auto x=getuser_byname(a[0]);
+        auto x=getuser_byname(string(a[0]));
         if(x){
             ban_data.Put(x->getXUID(),x->getName());
         }
-        runcmd(string("skick \"")+a[0]+"\" §cYou are banned");
-        outp.success("§b"+a[0]+" has been banned");
+        runcmd(string("skick \"")+string(a[0])+"\" §cYou are banned");
+        outp.success("§b"+string(a[0])+" has been banned");
     }
 }
-static void oncmd2(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd2(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         ban_data.Del(a[0]);
-        outp.success("§b"+a[0]+" has been unblocked");
+        outp.success("§b"+string(a[0])+" has been unbanned");
     }
 }
 //add custom
@@ -206,11 +206,12 @@ THook(void*,_ZN5BlockC2EtR7WeakPtrI11BlockLegacyE,Block* a,unsigned short x,void
     return ret;
 }
 
-unordered_map<string,clock_t> lastchat;
+unordered_map<Shash_t,clock_t> lastchat;
 int FChatLimit;
 static bool ChatLimit(ServerPlayer* p){
     if(!FChatLimit || p->getPlayerPermissionLevel()>1) return true;
-    auto last=lastchat.find(p->getRealNameTag());
+    auto hash=p->getNameTagAsHash();
+    auto last=lastchat.find(hash);
     if(last!=lastchat.end()){
     auto old=last->second;
     auto now=clock();
@@ -218,7 +219,7 @@ static bool ChatLimit(ServerPlayer* p){
     if(now-old<CLOCKS_PER_SEC*0.25) return false;
     return true;
     }else{
-        lastchat.insert({p->getRealNameTag(),clock()});
+        lastchat.insert({hash,clock()});
         return true;
     }
 }
@@ -371,7 +372,8 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
     return original(_thi,player,b);
 }
 using namespace rapidjson;
-static void load_config(){
+
+static void _load_config(){
     banitems.clear();warnitems.clear();
     Document d;
     char* buf;
@@ -396,25 +398,29 @@ static void load_config(){
     }
     free(buf);
 }
-string lastn;
+static void load_config(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
+    _load_config();
+}
+Shash_t lastn;
 clock_t lastcl;
 int fd_count;
 #include<ctime>
 static int handle_dest(GameMode* a0,BlockPos const& a1,unsigned char a2) {
     if(!FDest) return 1;
-    int pl=a0->getPlayer()->getPlayerPermissionLevel();
-    if(pl>1 || a0->getPlayer()->isCreative()) {
+    auto sp=a0->getPlayer();
+    int pl=sp->getPlayerPermissionLevel();
+    if(pl>1 || sp->isCreative()) {
         return 1;
     }
-    const string& name=a0->getPlayer()->getName();
+    auto hash=sp->getNameTagAsHash();
     int x(a1.x),y(a1.y),z(a1.z); 
-    Block& bk=*a0->getPlayer()->getBlockSource()->getBlock(a1);
+    Block& bk=*sp->getBlockSource()->getBlock(a1);
     int id=bk.getLegacyBlock()->getBlockItemId();
     if(id==7 || id==416){
-        notifyCheat(name,CheatType::INV);
+        notifyCheat(sp->getName(),CheatType::INV);
         return 0;
     }
-    if(name==lastn && clock()-lastcl<CLOCKS_PER_SEC*(10.0/1000)/*10ms*/) {
+    if(hash==lastn && clock()-lastcl<CLOCKS_PER_SEC*(10.0/1000)/*10ms*/) {
         lastcl=clock();
         fd_count++; 
         if(fd_count>=5){
@@ -422,12 +428,12 @@ static int handle_dest(GameMode* a0,BlockPos const& a1,unsigned char a2) {
             return 0;
         }
     }else{
-        lastn=name;
+        lastn=hash;
         lastcl=clock();
         fd_count=0;
     }
     const Vec3& fk=a0->getPlayer()->getPos();
-#define abs(x) ((x)<0?-(x):(x))
+    #define abs(x) ((x)<0?-(x):(x))
     int dx=fk.x-x;
     int dy=fk.y-y;
     int dz=fk.z-z;
@@ -437,15 +443,15 @@ static int handle_dest(GameMode* a0,BlockPos const& a1,unsigned char a2) {
     }
     return 1;
 }
-static void toggle_dbg(){
+static void toggle_dbg(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
     dbg_player=!dbg_player;
 }
-static void kick_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void kick_cmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         if(a.size()==1) a.push_back("Kicked");
-        runcmd("kick \""+a[0]+"\" "+a[1]);
-        auto x=getuser_byname(a[0]);
+        runcmd("kick \""+string(a[0])+"\" "+string(a[1]));
+        auto x=getuser_byname(string(a[0]));
         if(x){
             forceKickPlayer(*x);
             outp.success("§bKicked player");
@@ -454,12 +460,17 @@ static void kick_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOutpu
         }
     }
 }
-static void bangui_cmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void bangui_cmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     string nm=b.getName();
-    gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"ban","ban",[nm](const string& dst){
+    gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"ban","ban",[nm](string_view dst){
         auto sp=getplayer_byname(nm);
-        if(sp)
-            runcmdAs("ban \""+dst+"\"",sp);
+        if(sp){
+            SPBuf sb;
+            sb.write("ban \"");
+            sb.write(dst);
+            sb.write("\"");
+            runcmdAs(sb.get(),sp);
+        }
     });
 }
 THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstance* mi){
@@ -473,20 +484,71 @@ THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstanc
     }
     return original(ac,mi);
 }
+string dumpSP(ServerPlayer& sp){
+    string ret;
+    auto& x=sp.getSupplies();
+    int sz=x.getContainerSize((ContainerID)0ul);
+    for(int i=0;i<sz;++i){
+        auto& item=x.getItem(i,(ContainerID)0ul);
+        //printf("%s\n",item.toString().c_str());
+        ret+=item.toString()+" | ";
+    }
+    return ret;
+}
+string dumpSP_Ender(ServerPlayer& sp){
+    string ret;
+    auto* x=sp.getEnderChestContainer();
+    if(!x){
+        printf("no ender found\n");
+        return "";
+    }
+    int sz=x->getContainerSize();
+    for(int i=0;i<sz;++i){
+        auto& item=x->getItem(i);
+        //printf("%s\n",item.toString().c_str());
+        ret+=item.toString()+" | ";
+    }
+    return ret;
+}
+string dumpall(ServerPlayer* sp){
+    string ret;
+    ret=dumpSP(*sp);
+    ret+="\n-----starting ender chest dump-----\n";
+    ret+=dumpSP_Ender(*sp)+"\n";
+    return ret;
+}
+static void oncmd_invcheck(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+    ARGSZ(1)
+    auto sp=getSP(getplayer_byname2(a[0]));
+    if(!sp){
+        outp.error("cant find user");
+        return;
+    }
+    outp.addMessage(dumpall(sp));
+}
+static void onJoin(ServerPlayer* sp){
+    auto inv=dumpall(sp);
+    int fd=open(("invdump/"+sp->getName()).c_str(),O_WRONLY|O_TRUNC|O_CREAT,S_IRUSR);
+    write(fd,inv.data(),inv.size());
+    close(fd);
+}
 void mod_init(std::list<string>& modlist) {
     initlog();
-    register_cmd("ban",fp(oncmd),"ban player",1);
-    register_cmd("unban",fp(oncmd2),"unban player",1);
-    register_cmd("reload_bear",fp(load_config),"reload Configs for antibear",1);
-    register_cmd("bear_dbg",fp(toggle_dbg),"toggle item id debug",1);
-    register_cmd("skick",fp(kick_cmd),"force kick",1);
-    register_cmd("bangui",fp(bangui_cmd),"gui for ban",1);
+    register_cmd("ban",oncmd,"ban player",1);
+    register_cmd("unban",oncmd2,"unban player",1);
+    register_cmd("reload_bear",load_config,"reload Configs for antibear",1);
+    register_cmd("bear_dbg",toggle_dbg,"toggle item id debug",1);
+    register_cmd("skick",kick_cmd,"force kick",1);
+    register_cmd("bangui",bangui_cmd,"gui for ban",1);
+    register_cmd("invcheck",oncmd_invcheck,"inspect player's inventory",1);
+    mkdir("invdump",S_IRWXU);
+    reg_player_join(onJoin);
     reg_useitemon(handle_u);
     reg_player_left(handle_left);
     reg_chat(hkc);
-    load_config();
+    _load_config();
     if(getenv("LOGNET")) rori=(typeof(rori))(MyHook(fp(recvfrom),fp(recvfrom_hook)));
-    printf("[ANTI-BEAR] Loaded V2019-12-14\n");
+    printf("[ANTI-BEAR] Loaded " BDL_TAG "\n");
     load_helper(modlist);
 }
 

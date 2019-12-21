@@ -8,7 +8,7 @@ extern "C" {
    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-typedef unsigned long __int64;
+typedef signed long __int64;
 typedef unsigned long _QWORD;
 typedef unsigned int _DWORD;
 typedef unsigned char _BYTE;

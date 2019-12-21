@@ -189,7 +189,7 @@ struct tpreq {
     string name;
 };
 static unordered_map<string,tpreq> tpmap;
-static void oncmd_suic(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_suic(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     KillActor(b.getEntity());
     outp.success("You are dead");
 }
@@ -213,22 +213,28 @@ void sendTPForm(const string& from,int type,ServerPlayer* sp){
     );
     gui_Buttons(sp,cont,"Teleport Request",lis);
 }
-void sendTPChoose(ServerPlayer* sp,const string& type){
+void sendTPChoose(ServerPlayer* sp,const char* type){
     string name=sp->getName();
-    gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](const string& dest){
+    gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](string_view dest){
         auto xx=getSrvLevel()->getPlayer(name);
-            if(xx)
-            runcmdAs("tpa "+type+" "+SafeStr(dest),xx);
+            if(xx){
+                SPBuf sb;
+                sb.write("tpa %s \"",type);
+                sb.write(dest);
+                sb.write("\"");
+                runcmdAs(sb.get(),xx);
+                //runcmdAs("tpa "+type+" "+SafeStr(dest),xx);
+            }
     });
 }
-static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanTP){
         outp.error("Teleport not enabled on this server!");
         return;
     }
     int pl=(int)b.getPermissionsLevel();
     string name=b.getName();
-    string dnm=a.size()==2?a[1]:"";
+    string dnm=a.size()==2?string(a[1]):"";
     Player* dst=NULL;
     if(dnm!="")
         dst=getplayer_byname2(dnm);
@@ -315,14 +321,14 @@ static void oncmd(std::vector<string>& a,CommandOrigin const & b,CommandOutput &
     }
 }
 
-static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_home(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanHome){
         outp.error("Home not enabled on this server!");
         return;
     }
     int pl=(int)b.getPermissionsLevel();
     string name=b.getName();
-    string homen=a.size()==2?a[1]:"hape";
+    string homen=a.size()==2?string(a[1]):"hape";
     Vec3 pos=b.getWorldPosition();
     //printf("%f %f %f\n",pos.x,pos.y,pos.z);
     ARGSZ(1)
@@ -385,7 +391,7 @@ static void oncmd_home(std::vector<string>& a,CommandOrigin const & b,CommandOut
         gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a home","Home",lis);
     }
 }
-static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_warp(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     int pl=(int)b.getPermissionsLevel();
     // printf("pl %d\n",pl);
     string name=b.getName();
@@ -394,14 +400,14 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
     if(a[0]=="add") {
         if(pl<1) return;
         ARGSZ(2)
-        add_warp(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),a[1]);
+        add_warp(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),string(a[1]));
         outp.success("§bSuccessfully added a warp");
         return;
     }
     if(a[0]=="del") {
         if(pl<1) return;
         ARGSZ(2)
-        del_warp(a[1]);
+        del_warp(string(a[1]));
         outp.success("§bSuccessfully deleted a Warp");
         return;
     }
@@ -430,7 +436,7 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
         gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a warp","Warp",lis);
     }
     //go
-    auto it=warp.find(a[0]);
+    auto it=warp.find(string(a[0]));
         if(it!=warp.end()) {
             it->second.tele(*b.getEntity());
             outp.success("§bTeleported you to warp");
@@ -438,15 +444,16 @@ static void oncmd_warp(std::vector<string>& a,CommandOrigin const & b,CommandOut
         }
 }
 
-static unordered_map<string,pair<Vec3,int> > deathpoint;
-static void oncmd_back(std::vector<string>& a,CommandOrigin const & b,CommandOutput &outp) {
+static unordered_map<Shash_t,pair<Vec3,int> > deathpoint;
+static void oncmd_back(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanBack) {outp.error("Back not enabled on this server"); return;}
-    auto it=deathpoint.find(b.getName());
+    ServerPlayer* sp=(ServerPlayer*)b.getEntity();
+    if(!sp) return;
+    auto it=deathpoint.find(sp->getNameTagAsHash());
     if(it==deathpoint.end()){
         outp.error("Can't find deathpoint");
         return;
     }
-    ServerPlayer* sp=(ServerPlayer*)b.getEntity();
     TeleportA(*sp,it->second.first,{it->second.second});
     deathpoint.erase(it);
     outp.success("§bBack to deathpoint");
@@ -457,7 +464,7 @@ static void handle_mobdie(Mob& mb,const ActorDamageSource&){
     if(sp){
         ServerPlayer* sp=(ServerPlayer*)&mb;
         sendText(sp,"§bYou can use /back to return last deathpoint");
-        deathpoint[sp->getName()]={sp->getPos(),sp->getDimensionId()};
+        deathpoint[sp->getNameTagAsHash()]={sp->getPos(),sp->getDimensionId()};
     }
 }
 #include"rapidjson/document.h"
@@ -479,15 +486,15 @@ static void load_cfg(){
 }
 
 void mod_init(std::list<string>& modlist) {
-    printf("[TPs] loaded! V2019-12-14\n");
+    printf("[TPs] loaded! " BDL_TAG "\n");
     load();
     load_warps_new();
     load_cfg();
-    register_cmd("suicide",(void*)oncmd_suic,"kill yourself");
-    register_cmd("tpa",(void*)oncmd,"teleport command");
-    register_cmd("home",(void*)oncmd_home,"home command");
-    register_cmd("warp",(void*)oncmd_warp,"warp command");
-    register_cmd("back",(void*)oncmd_back,"back to deathpoint");
+    register_cmd("suicide",oncmd_suic,"kill yourself");
+    register_cmd("tpa",oncmd,"teleport command");
+    register_cmd("home",oncmd_home,"home command");
+    register_cmd("warp",oncmd_warp,"warp command");
+    register_cmd("back",oncmd_back,"back to deathpoint");
     reg_mobdie(handle_mobdie);
     load_helper(modlist);
 }
