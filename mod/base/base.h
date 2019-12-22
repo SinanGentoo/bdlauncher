@@ -152,4 +152,4 @@ STRING_HASH do_hash(string_view x){
     }
     return (((STRING_HASH)hash1)<<32)|hash2;
 }
-#define BDL_TAG "V2019-12-22"
+#define BDL_TAG "V2019-12-23"

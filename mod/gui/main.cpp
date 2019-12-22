@@ -56,7 +56,7 @@ struct GUIPK{
 static void sendStr(ServerPlayer& sp,string_view fm,int id){
     gGUIPK.send(sp,fm,id);
 }
-int autoid;
+static int autoid;
 BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm){
     if(id_forms.size()>128){
         for(auto& i:id_forms){

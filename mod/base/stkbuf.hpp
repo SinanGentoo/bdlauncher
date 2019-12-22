@@ -10,20 +10,27 @@ struct SPBuf{
     std::string getstr(){
         return std::string(buf,ptr);
     }
-    string_view get(){
+    inline string_view get(){
         return {buf,(size_t)ptr};
     }
     void clear(){
         ptr=0;
     }
-    string_view write(string_view sv){
+    inline string_view write(string_view sv){
         if(sv.size()>sz-ptr) return {buf,(size_t)ptr};
         memcpy(buf+ptr,sv.data(),sv.size());
         ptr+=sv.size();
         return {buf,(size_t)ptr};
     }
+    string_view write(const char* cs){
+        auto csz=strlen(cs);
+        if(csz>sz-ptr) return {buf,(size_t)ptr};
+        memcpy(buf+ptr,cs,csz);
+        ptr+=csz;
+        return {buf,(size_t)ptr};
+    }
     template <typename... Params>
-    string_view write(Params &&... params){
+    inline string_view write(Params &&... params){
         ptr+=snprintf(buf+ptr,sz-ptr,std::forward<Params>(params)...);
         return {buf,(size_t)ptr};
     }

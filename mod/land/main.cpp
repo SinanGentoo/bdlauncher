@@ -43,9 +43,9 @@ static std::unordered_map<STRING_HASH, LPOS> startpos, endpos;
 static unordered_map<STRING_HASH, int> choose_state;
 
 int LAND_PRICE, LAND_PRICE2;
-bool land_tip = true;
+static bool land_tip = true;
 using namespace rapidjson;
-void loadcfg()
+static void loadcfg()
 {
     Document dc;
     char *buf;
@@ -320,7 +320,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     }
 }
 
-void CONVERT(char *b, int s)
+static void CONVERT(char *b, int s)
 {
     DataStream ds;
     ds.dat = string(b, s);
@@ -388,7 +388,6 @@ static bool handle_dest(GameMode *a0, BlockPos const *a1)
 }
 static bool handle_attack(Actor &vi, ActorDamageSource const &src, int &val)
 {
-    int x, y;
     if (src.isChildEntitySource() || src.isEntitySource())
     {
         auto id = src.getEntityUniqueID();
@@ -494,7 +493,7 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
         return 0;
     }
 }
-unordered_map<STRING_HASH, string> lastland;
+static unordered_map<STRING_HASH, string> lastland;
 THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned long const *tk)
 {
     if (!land_tip)
@@ -531,9 +530,9 @@ void mod_init(std::list<string> &modlist)
     load();
     loadcfg();
     string dummy;
-    if(!db.Get("land_fixed",dummy)){
+    if(!db.Get("land_fixed_2",dummy)){
         CHECK_AND_FIX_ALL();
-        db.Put("land_fixed",dummy);
+        db.Put("land_fixed_2",dummy);
     }
     register_cmd("land", oncmd, "land command");
     register_cmd("reload_land", loadcfg, "reload land cfg", 1);

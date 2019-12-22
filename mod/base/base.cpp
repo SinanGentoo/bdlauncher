@@ -184,10 +184,14 @@ Player* getplayer_byname2(string_view name) {
 }
 
 void get_player_names(vector<string>& a){
-    getSrvLevel()->forEachPlayer([&](Player& tg)->bool{
+    /*getSrvLevel()->forEachPlayer([&](Player& tg)->bool{
         a.emplace_back(tg.getName());
         return true;
-    });
+    });*/
+    auto vc=getSrvLevel()->getUsers();
+    for(auto& i:*vc){
+        a.emplace_back(i->getName());
+    }
 }
 static Minecraft* MC;
 BDL_EXPORT Minecraft* _getMC() {

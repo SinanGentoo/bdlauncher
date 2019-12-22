@@ -52,7 +52,7 @@ struct FastLand{
     int memsz(){
         return sizeof(FastLand)+owner_sz+1;
     }
-    string_view getOwner(){
+    inline string_view getOwner(){
         return {owner,(size_t)owner_sz};
     }
 };
@@ -120,7 +120,6 @@ static struct LandCacheManager{
             buf[0]='l';buf[1]='_';
             memcpy(buf+2,&id,4);
             db.Get(string_view(buf,6),landstr);
-            //printf("lsz %d\n",landstr.size());
             res=(FastLand*)malloc(landstr.size()+1);
             memcpy(res,landstr.data(),landstr.size());
             res->owner[res->owner_sz]=0;
@@ -147,28 +146,17 @@ struct ChunkLandManager{
     }
     void init(int* landlist,int siz){
         memset(lands,0,sizeof(lands));
-        for(int i=0;i<siz;++i){
-            auto fl=LCMan.requestLand(landlist[i]);
+        for(int I=0;I<siz;++I){
+            auto fl=LCMan.requestLand(landlist[I]);
             managed_lands.push_back(fl);
-            
-            /*for(int dx=0;dx<16;++dx){
-                for(int dz=0;dz<16;++dz){
-                    if(((xx<<4)|dx)>=fl->x && ((xx<<4)|dx)<=fl->dx && ((zz<<4)|dz)<=fl->dz && ((zz<<4)|dz)>=fl->z){
-                        printf("push %d %d %s\n",dx,dz,fl->owner);
-                        lands[dx][dz]=fl;
-                    }
-                }
-            }*/
             lpos_t sx,dx,sz,dz;
             if((fl->x>>4)==xx) sx=fl->x&15; else sx=0;
             if((fl->z>>4)==zz) sz=fl->z&15; else sz=0;
             if((fl->dx>>4)==xx) dx=fl->dx&15; else dx=15;
             if((fl->dz>>4)==zz) dz=fl->dz&15; else dz=15;
-            //printf("%d %d %d %d %d %d %d %d\n",fl->x,fl->z,fl->dx,fl->dz,sx,sz,dx,dz);
             for(lpos_t i=sx;i<=dx;++i){
                 for(lpos_t j=sz;j<=dz;++j){
                     lands[i][j]=fl;
-                    //printf("push %d %d %s\n",i,j,fl->owner);
                 }
             }
         }
@@ -180,10 +168,8 @@ struct ChunkLandManager{
         memcpy(buf,&x,4);
         memcpy(buf+4,&z,4);
         buf[8]=dim;
-        auto suc=db.Get(string_view(buf,9),val);
-        //printf("cpos %d %d %d\n",x,z,suc);
+        db.Get(string_view(buf,9),val);
         init((int*)val.data(),val.size()/4);
-        //printf("load with %d\n",managed_lands.size());
     }
 };
 template<int CACHE_SZ>
@@ -251,16 +237,16 @@ struct CLCache{
     }
 };
 static CLCache<128> CLMan;
-inline void purge_cache(){
+static inline void purge_cache(){
     CLMan.purge();
 }
-inline ChunkLandManager* getChunkMan(lpos_t x,lpos_t z,int dim){
+static inline ChunkLandManager* getChunkMan(lpos_t x,lpos_t z,int dim){
     return CLMan.get_or_build(x,z,dim);
 }
-inline lpos_t to_lpos(int p){
+static inline lpos_t to_lpos(int p){
     return p+200000;
 } 
-inline FastLand* getFastLand(int x,int z,int dim){
+static inline FastLand* getFastLand(int x,int z,int dim){
     lpos_t xx,zz;
     if(unlikely(x<-200000 || z<-200000)) return nullptr;
     xx=to_lpos(x);
@@ -268,14 +254,14 @@ inline FastLand* getFastLand(int x,int z,int dim){
     auto cm=getChunkMan(xx>>4,zz>>4,dim);
     return cm->lands[xx&15][zz&15];
 }
-inline bool generic_perm(int x,int z,int dim,LandPerm perm,const string& name){
+static inline bool generic_perm(int x,int z,int dim,LandPerm perm,const string& name){
     auto ld=getFastLand(x,z,dim);
     if(unlikely(ld)){
         return ld->hasPerm(name,perm);
     }
     return true;
 }
-uint getLandUniqid(){
+static uint getLandUniqid(){
     string val;
     uint id=0;
     if(!db.Get("land_id",val)){
@@ -288,7 +274,7 @@ uint getLandUniqid(){
         return id;
     }
 }
-void proc_chunk_add(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
+static void proc_chunk_add(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
     char buf[9];
     x>>=4;
     dx>>=4;
@@ -296,20 +282,18 @@ void proc_chunk_add(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
     dz>>=4;
     buf[8]=dim;
     string_view key(buf,9);
-    string val;
-    for(int i=x;i<=dx;++i){
-        for(int j=z;j<=dz;++j){
-            //printf("proc add %d %d %d\n",i,j,dim);
+    for(auto i=x;i<=dx;++i){
+        for(auto j=z;j<=dz;++j){
             memcpy(buf,&i,4);
             memcpy(buf+4,&j,4);
+            string val;
             db.Get(key,val);
             val.append((char*)&lid,4);
-            //printf("put key %d %d\n",key.size(),val.size());
             db.Put(key,val);
         }
     }
 }
-void proc_chunk_del(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
+static void proc_chunk_del(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
     char buf[9];
     x>>=4;
     dx>>=4;
@@ -336,7 +320,7 @@ void proc_chunk_del(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,uint lid){
         }
     }
 }
-void addLand(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,const string& owner,LandPerm perm=PERM_NULL){
+static void addLand(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,const string& owner,LandPerm perm=PERM_NULL){
     DataLand ld;
     ld.x=x,ld.z=z,ld.dx=dx,ld.dz=dz,ld.dim=dim;
     ld.owner=owner[0]=='|'?owner:('|'+owner+'|');
@@ -355,7 +339,7 @@ void addLand(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,const string& owner,L
     proc_chunk_add(x,dx,z,dz,dim,lid);
     purge_cache();
 }
-void updLand(DataLand& ld){
+static void updLand(DataLand& ld){
     auto lid=ld.lid;
     DataStream ds;
     char buf[6];
@@ -366,7 +350,7 @@ void updLand(DataLand& ld){
     db.Put(key,ds.dat);
     purge_cache();
 }
-void removeLand(FastLand* land){
+static void removeLand(FastLand* land){
     char buf[6];
     buf[0]='l';buf[1]='_';
     memcpy(buf+2,&land->lid,4);
@@ -375,7 +359,7 @@ void removeLand(FastLand* land){
     proc_chunk_del(land->x,land->dx,land->z,land->dz,land->dim,land->lid); //BUG HERE
     purge_cache();
 }
-inline void Fland2Dland(FastLand* ld,DataLand& d){
+static inline void Fland2Dland(FastLand* ld,DataLand& d){
     memcpy(&d,ld,24);
     d.owner=string(ld->owner,ld->owner_sz);
 }
@@ -436,7 +420,10 @@ void CHECK_AND_FIX_ALL(){
         auto& Land=nowLand.second;
         ds<<Land;
         db.Put(nowLand.first,ds.dat);
-        proc_chunk_add(Land.x,Land.dx,Land.z,Land.dz,Land.dim,Land.lid);
+        if(Land.lid==81){
+            printf("call\n");
+            proc_chunk_add(Land.x,Land.dx,Land.z,Land.dz,Land.dim,Land.lid);
+        }
     }
     db.CompactAll();
     printf("[LAND/LCK] Done land data fix!\n",lands.size());

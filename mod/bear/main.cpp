@@ -136,10 +136,10 @@ static void oncmd2(std::vector<string_view>& a,CommandOrigin const & b,CommandOu
 }
 //add custom
 using std::unordered_set;
-unordered_set<short> banitems,warnitems;
+static unordered_set<short> banitems,warnitems;
 
-bool dbg_player;
-int LOG_CHEST;
+static bool dbg_player;
+static int LOG_CHEST;
 THook(void*,_ZN15ChestBlockActor9startOpenER6Player,BlockActor& ac,Player& pl){
     if(LOG_CHEST){
         auto& pos=ac.getPosition();
@@ -173,7 +173,7 @@ static void handle_left(ServerPlayer* a1){
 }
 #include"rapidjson/document.h"
 
-int FPushBlock,FExpOrb,FDest;
+static int FPushBlock,FExpOrb,FDest;
 enum CheatType{
     FLY,NOCLIP,INV,MOVE
 };
@@ -206,10 +206,10 @@ THook(void*,_ZN5BlockC2EtR7WeakPtrI11BlockLegacyE,Block* a,unsigned short x,void
     return ret;
 }
 
-unordered_map<STRING_HASH,clock_t> lastchat;
-int FChatLimit;
-ServerPlayer* lastchat_fast;
-clock_t lastchat_fast_c;
+static unordered_map<STRING_HASH,clock_t> lastchat;
+static int FChatLimit;
+static ServerPlayer* lastchat_fast;
+static clock_t lastchat_fast_c;
 static bool ChatLimit(ServerPlayer* p){
     if(!FChatLimit || p->getPlayerPermissionLevel()>1) return true;
     if(lastchat_fast==p){
@@ -409,9 +409,9 @@ static void _load_config(){
 static void load_config(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
     _load_config();
 }
-Shash_t lastn;
-clock_t lastcl;
-int fd_count;
+static Shash_t lastn;
+static clock_t lastcl;
+static int fd_count;
 #include<ctime>
 static int handle_dest(GameMode* a0,BlockPos const& a1,unsigned char a2) {
     if(!FDest) return 1;
@@ -492,7 +492,7 @@ THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstanc
     }
     return original(ac,mi);
 }
-string dumpSP(ServerPlayer& sp){
+static string dumpSP(ServerPlayer& sp){
     string ret;
     auto& x=sp.getSupplies();
     int sz=x.getContainerSize((ContainerID)0ul);
@@ -503,7 +503,7 @@ string dumpSP(ServerPlayer& sp){
     }
     return ret;
 }
-string dumpSP_Ender(ServerPlayer& sp){
+static string dumpSP_Ender(ServerPlayer& sp){
     string ret;
     auto* x=sp.getEnderChestContainer();
     if(!x){
@@ -518,7 +518,7 @@ string dumpSP_Ender(ServerPlayer& sp){
     }
     return ret;
 }
-string dumpall(ServerPlayer* sp){
+static string dumpall(ServerPlayer* sp){
     string ret;
     ret=dumpSP(*sp);
     ret+="\n-----starting ender chest dump-----\n";

@@ -30,7 +30,7 @@ extern "C" {
 }
 
 extern void load_helper(std::list<string>& modlist);
-bool CanBack=true,CanHome=true,CanTP=true;
+static bool CanBack=true,CanHome=true,CanTP=true;
 int MaxHomes=5;
 struct Vpos {
     int x,y,z,dim;
@@ -67,7 +67,7 @@ struct home {
 };
 static list<string> warp_list;
 static unordered_map<string,Vpos> warp;
-LDBImpl tp_db("data_v2/tp");
+static LDBImpl tp_db("data_v2/tp");
 void CONVERT_WARP(){
     char* buf;
     int siz;
@@ -152,8 +152,8 @@ void load_warps_new(){
         tmpds>>warp[i];
     }
 }
-unordered_map<string,home> home_cache;
-home& getHome(const string& key){
+static unordered_map<string,home> home_cache;
+static home& getHome(const string& key){
     auto it=home_cache.find(key);
     if(it!=home_cache.end()){
         return it->second;
@@ -169,7 +169,7 @@ home& getHome(const string& key){
     home_cache[key]=hm;
     return home_cache[key];
 }
-void putHome(const string& key,home& hm){
+static void putHome(const string& key,home& hm){
     DataStream ds;
     ds<<hm;
     tp_db.Put("home_"+key,ds.dat);
@@ -194,7 +194,7 @@ static void oncmd_suic(std::vector<string_view>& a,CommandOrigin const & b,Comma
     outp.success("You are dead");
 }
 
-void sendTPChoose(ServerPlayer* sp,string_view type){
+static void sendTPChoose(ServerPlayer* sp,string_view type){
     string name=sp->getName();
     gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](string_view dest){
         auto xx=getSrvLevel()->getPlayer(name);
@@ -210,10 +210,10 @@ void sendTPChoose(ServerPlayer* sp,string_view type){
             }
     });
 }
-Form TPGUI,TPGUI2;
-StaticForm sTPGUI;
-string TPGUI2_str;
-void initTPGUI(){
+static Form TPGUI,TPGUI2;
+static StaticForm sTPGUI;
+static string TPGUI2_str;
+static void initTPGUI(){
     TPGUI.setContent("Send teleport request")->setTitle("Send teleport request");
     TPGUI.addButton("Teleport to a player","t");
     TPGUI.addButton("Teleport a player to you","f");
@@ -224,7 +224,7 @@ void initTPGUI(){
     TPGUI2_str=TPGUI2.getstr();
     printf("%s\n",TPGUI2_str.c_str());
 }
-void sendTPForm(const string& from,int type,ServerPlayer* sp){
+static void sendTPForm(const string& from,int type,ServerPlayer* sp){
     SPBuf<512>* sb=new SPBuf<512>();
     sb->write(TPGUI2_str.c_str(),from.c_str(),(type?" wants to teleport you to his location":"want to teleport to your location"));
     StaticForm* sf=new StaticForm();
@@ -243,7 +243,7 @@ void sendTPForm(const string& from,int type,ServerPlayer* sp){
     };
     sendForm(*sp,sf);
 }
-void SendTPGUI(ServerPlayer* sp){
+static void SendTPGUI(ServerPlayer* sp){
     string name=sp->getName();
     StaticForm* sf=new StaticForm(sTPGUI);
     sf->cb=[name](string_view sv){

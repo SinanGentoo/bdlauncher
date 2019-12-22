@@ -63,8 +63,8 @@ struct CMDForm{
         sbase.load(base);
     }
 };
-unordered_map<STRING_HASH,CMDForm> forms;
-list<Timer> timers;
+static unordered_map<STRING_HASH,CMDForm> forms;
+static list<Timer> timers;
 struct Oneshot{
     int time;
     string name,cmd;
@@ -75,8 +75,8 @@ struct Oneshot{
         time=a,name=b;cmd=c;
     }
 };
-priority_queue<Oneshot> oneshot_timers;
-CMD joinHook;
+static priority_queue<Oneshot> oneshot_timers;
+static CMD joinHook;
 static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(a.size()==0) a.emplace_back("root");
     auto hs=do_hash(a[0]);
@@ -120,7 +120,7 @@ THook(void*,_ZN5Level4tickEv,Level& a){
     if(tkl%20==0) tick(tkl/20);
     return original(a);
 }
-int menuitem;
+static int menuitem;
 using namespace rapidjson;
 //vector<string> gStrPool;
 static void load(){
@@ -175,8 +175,8 @@ static void load(){
     }
     free(buf);
 }
-clock_t lastclk;
-ServerPlayer* lastp;
+static clock_t lastclk;
+static ServerPlayer* lastp;
 static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos const* dstPos,Block const* a5){
     if(menuitem!=0 && a1->getId()==menuitem){
         auto sp=a0->getPlayer();

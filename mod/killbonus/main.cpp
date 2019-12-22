@@ -30,11 +30,11 @@ void load(){
     }
     free(buf);
 }
-int dbg_die;
+static int dbg_die;
 static void toggle_dbg(){
     dbg_die=!dbg_die;
 }
-void handle_die(Mob& a,ActorDamageSource const& b){
+static void handle_die(Mob& a,ActorDamageSource const& b){
     if(b.isChildEntitySource() || b.isEntitySource()){
         auto ent=getSrvLevel()->fetchEntity(b.getEntityUniqueID(),false);
         ServerPlayer* sp=getSP(ent);
