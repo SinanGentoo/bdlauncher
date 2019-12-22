@@ -37,37 +37,30 @@ struct Timer{
     }
     Timer(){}
 };
-typedef unsigned long STRING_HASH;
 
-STRING_HASH do_hash(string_view x){
-    auto sz=x.size();
-    auto c=x.data();
-    uint hash1=0;uint hash2=0;
-    for(int i=0;i<sz;++i){
-        hash1=(hash1*47+c[i])%1000000007;
-        hash2=(hash2*83+c[i])%1000000009;
-    }
-    return (((STRING_HASH)hash1)<<32)|hash2;
-}
 struct CMDForm{
     unordered_map<STRING_HASH,CMD> cmds;
     vector<string> ordered_cmds;
     string content;
     string title;
+    Form base;
+    StaticForm sbase;
     void sendTo(ServerPlayer& sp){
-        string nm=sp.getName();
-        Form* x=new Form([this,nm](string_view s)->void{
-            //printf("handle %s %s\n",nm.c_str(),s.c_str());
+        string nm=sp.getNameTag(); //!!! fix BUG: setname("newname")
+        StaticForm* sf=new StaticForm(sbase);
+        sf->cb=[this,nm](string_view s)->void{
             auto hs=do_hash(s);
             auto it=cmds.find(hs);
             if(it!=cmds.end())
                 it->second.execute(nm);
-        });
-        x->setContent(content);
-        x->setTitle(title);
+        };
+        sendForm(sp,sf);
+    }
+    void init(){
+        base.setContent(content)->setTitle(title);
         for(auto& i:ordered_cmds)
-            x->addButton(i,i);
-        sendForm(sp,x);
+            base.addButton(i,i);
+        sbase.load(base);
     }
 };
 unordered_map<STRING_HASH,CMDForm> forms;
@@ -85,7 +78,6 @@ struct Oneshot{
 priority_queue<Oneshot> oneshot_timers;
 CMD joinHook;
 static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
-    auto nm=b.getName();
     if(a.size()==0) a.emplace_back("root");
     auto hs=do_hash(a[0]);
     if(forms.count(hs)){
@@ -103,7 +95,7 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
     }
 }
 static void join(ServerPlayer* sp){
-    joinHook.execute(sp->getName(),false);
+    joinHook.execute(sp->getNameTag(),false);
 }
 static void tick(int tk){
     for(auto& i:timers){
@@ -158,7 +150,7 @@ static void load(){
             auto&& title=x["title"];
 	        auto&& name=x["name"];
             assert(buttons.IsArray());
-            CMDForm cf;
+            auto& cf=forms[do_hash(name.GetString())];
             cf.title=title.GetString();
             cf.content=cont.GetString();
             for(auto& i:buttons.GetArray()){
@@ -175,7 +167,7 @@ static void load(){
                 cf.cmds.emplace(do_hash(but[0].GetString()),CMD(but[1].GetString(),but[2].GetString()));
                 cf.ordered_cmds.emplace_back(but[0].GetString());
             }
-	        forms.emplace(do_hash(name.GetString()),cf);
+            cf.init();
         }
         if(typ=="timer"){
             timers.emplace_back(x["time"].GetInt(),x["shift"].GetInt(),CMD("",x["cmd"].GetString()));
@@ -183,10 +175,24 @@ static void load(){
     }
     free(buf);
 }
-
+clock_t lastclk;
+ServerPlayer* lastp;
 static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos const* dstPos,Block const* a5){
     if(menuitem!=0 && a1->getId()==menuitem){
-        runcmdAs("c",a0->getPlayer());
+        auto sp=a0->getPlayer();
+        if(lastp==sp){
+            if(clock()-lastclk<CLOCKS_PER_SEC/10){
+                return 0;
+            }else{
+                lastclk=clock();
+                runcmdAs("c",sp);
+            }
+        }else{
+                lastclk=clock();
+                lastp=sp;
+                runcmdAs("c",sp);
+        }
+        
         return 0;
     }
     return 1;

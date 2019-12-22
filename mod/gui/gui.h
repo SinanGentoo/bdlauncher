@@ -13,13 +13,20 @@ struct BaseForm{
     virtual int getid()=0;
     virtual void process(const string&)=0;
 };
-
 struct Form:BaseForm{
     int fid;
     Document dc;
     vector<string> labels;
     std::function< void(string_view)> cb;
     StringBuffer buf;
+    Form(){
+        dc.SetObject();
+        dc.AddMember("type","form",dc.GetAllocator());
+        dc.AddMember("title","",dc.GetAllocator());
+        dc.AddMember("content","",dc.GetAllocator());
+        Value x(kArrayType);
+        dc.AddMember("buttons",x,dc.GetAllocator());
+    }
     Form(std::function< void(string_view)> cbx){
         cb=cbx;
         dc.SetObject();
@@ -42,6 +49,7 @@ struct Form:BaseForm{
         return fid;
     }
     string_view getstr(){
+        if(buf.GetSize()) return {buf.GetString(),buf.GetSize()};
         Writer<StringBuffer> writer(buf);
         dc.Accept(writer);
         return {buf.GetString(),buf.GetSize()};
@@ -106,6 +114,33 @@ struct SimpleInput:BaseForm{
         return this;
     }
 };
+struct StaticForm:BaseForm{
+    int fid;
+    vector<string>* labels;
+    std::function< void(string_view)> cb;
+    string_view buf;
+    StaticForm(){}
+    StaticForm(const StaticForm& x){labels=x.labels;buf=x.buf;}
+    void process(const string& d){
+        if(d[0]=='n') return;
+        int idx=atoi(string_view(d));
+        cb((*labels)[idx]);
+    }
+    void setID(int i){
+        fid=i;
+    }
+    int getid(){
+        return fid;
+    }
+    string_view getstr(){
+        return buf;
+    }
+    void load(Form& fm){
+        labels=&fm.labels;
+        buf=fm.getstr();
+    }
+};
+
 BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm);
 BDL_EXPORT void sendForm(string_view sp,BaseForm* fm);
 

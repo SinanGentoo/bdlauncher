@@ -39,8 +39,8 @@ struct LPOS
 {
     int x, z;
 };
-static std::unordered_map<Shash_t, LPOS> startpos, endpos;
-static unordered_map<Shash_t, int> choose_state;
+static std::unordered_map<STRING_HASH, LPOS> startpos, endpos;
+static unordered_map<STRING_HASH, int> choose_state;
 
 int LAND_PRICE, LAND_PRICE2;
 bool land_tip = true;
@@ -60,6 +60,7 @@ void loadcfg()
     LAND_PRICE2 = dc["sell_price"].GetInt();
     if (dc.HasMember("land_tip"))
         land_tip = dc["land_tip"].GetBool();
+    if(getenv("NO_LTIP")) land_tip=false;
     free(buf);
 }
 static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOutput &outp)
@@ -78,21 +79,21 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     {
         if (!sp)
             return;
-        choose_state.erase(sp->getNameTagAsHash());
+        choose_state.erase(do_hash(sp->getName()));
         outp.success("§bExit selection mode, please input /land buy");
     }
     if (a[0] == "a")
     {
         if (!sp)
             return;
-        choose_state[sp->getNameTagAsHash()] = 1;
+        choose_state[do_hash(sp->getName())] = 1;
         outp.success("§bEnter selection mode, please click on the ground to select point A");
     }
     if (a[0] == "b")
     {
         if (!sp)
             return;
-        choose_state[sp->getNameTagAsHash()] = 2;
+        choose_state[do_hash(sp->getName())] = 2;
         outp.success("§bPlease click on the ground to select point B");
     }
     if (a[0] == "query")
@@ -114,7 +115,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     }
     if (a[0] == "buy")
     {
-        auto hash = sp->getNameTagAsHash();
+        auto hash = do_hash(sp->getName());
         int x, z, dx, dz;
         int dim = sp->getDimensionId();
         if (startpos.count(hash) + endpos.count(hash) != 2)
@@ -160,9 +161,9 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
                 auto lp = getFastLand(i, j, dim);
                 if (lp)
                 {
-                    sb.write("Land collision detected! hint: ");
+                    sb.write("Land collision detected! hint: "sv);
                     sb.write(lp->getOwner());
-                    sb.write("'s land");
+                    sb.write("'s land"sv);
                     outp.error(sb.getstr());
                     return;
                 }
@@ -363,9 +364,9 @@ static void load()
 
 static void NoticePerm(FastLand* fl,ServerPlayer* sp){
     SPBuf sb;
-    sb.write("§cThis is ");
+    sb.write("§cThis is "sv);
     sb.write(fl->getOwner());
-    sb.write("'s land");
+    sb.write("'s land"sv);
     sendText(sp, sb.get(), POPUP);
 }
 static bool handle_dest(GameMode *a0, BlockPos const *a1)
@@ -431,7 +432,7 @@ static bool handle_inter(GameMode *a0, Actor &a1)
 static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5)
 {
     ServerPlayer *sp = a0->getPlayer();
-    auto hash = sp->getNameTagAsHash();
+    auto hash = do_hash(sp->getName());
     if (choose_state[hash] != 0)
     {
         if (choose_state[hash] == 1)
@@ -463,6 +464,7 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
         pm = PERM_BUILD;
     }
     FastLand *fl = getFastLand(x, z, dim), *fl2 = getFastLand(dstPos->x, dstPos->z, dim);
+    //printf("pos %d %d ,%d %d\n",x,z,dstPos->x,dstPos->z);
     if (!fl && !fl2)
         return 1;
     auto name = sp->getName();
@@ -472,7 +474,7 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
     }
     else
     {
-        NoticePerm(fl,sp);
+        NoticePerm(fl?fl:fl2,sp);
         return 0;
     }
 }
@@ -492,14 +494,14 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
         return 0;
     }
 }
-unordered_map<Shash_t, string> lastland;
+unordered_map<STRING_HASH, string> lastland;
 THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned long const *tk)
 {
     if (!land_tip)
         return original(sp, tk);
-    if (*tk % 16 == 0)
+    if (*tk%16==0)
     {
-        auto hash = sp->getNameTagAsHash();
+        auto hash = do_hash(sp->getName());
         auto &oldname = lastland[hash];
         auto &pos = sp->getPos();
         int dim = sp->getDimensionId();
@@ -511,25 +513,13 @@ THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned lo
         }
         if (oldname != newname)
         {
-            /*if (oldname == "")
-            {
-                SPBuf sb;
-                sb.write("You entered ");sb.write(newname);sb.write("'s land!");
-                sendText(sp, sb.get(), TextType::RAW);
-            }
-            else
-            {
-                SPBuf sb;
-                sb.write("You lefted ");sb.write(string_view(oldname));sb.write("'s land!");
-                sendText(sp, sb.get(), TextType::RAW);
-            }*/
             SPBuf sb;
             if(newname==""){
-                sb.write("You lefted ");sb.write(string_view(oldname));sb.write("'s land!");
+                sb.write("You lefted "sv);sb.write(string_view(oldname));sb.write("'s land!"sv);
             }else{
-                sb.write("You entered ");sb.write(newname);sb.write("'s land!");
+                sb.write("You entered "sv);sb.write(newname);sb.write("'s land!"sv);
             }
-            sendText(sp, sb.get(), TextType::RAW);
+            sendText(sp, sb.get(), TextType::TIP);
             oldname = newname;
         }
     }

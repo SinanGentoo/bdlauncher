@@ -497,6 +497,7 @@ public:
     unsigned char getClientSubId() const;
     PlayerInventoryProxy& getSupplies() const;
     FillingContainer* getEnderChestContainer();
+    void setName(std::string const&);
 };
 class ServerPlayer : public Player
 {

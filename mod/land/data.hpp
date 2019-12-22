@@ -103,7 +103,7 @@ static_assert(offsetof(DataLand,dim)==22);
 static struct LandCacheManager{
     unordered_map<int,FastLand*> cache;
     void noticeFree(FastLand* fl){
-        //printf("notice free %d rcnt %d\n",fl->lid,fl->refcount);
+        //printf("notice free %p %d rcnt %d\n",fl,fl->lid,fl->refcount);
         fl->refcount--;
         if(fl->refcount<=0){
             cache.erase(fl->lid);
@@ -120,6 +120,7 @@ static struct LandCacheManager{
             buf[0]='l';buf[1]='_';
             memcpy(buf+2,&id,4);
             db.Get(string_view(buf,6),landstr);
+            //printf("lsz %d\n",landstr.size());
             res=(FastLand*)malloc(landstr.size()+1);
             memcpy(res,landstr.data(),landstr.size());
             res->owner[res->owner_sz]=0;

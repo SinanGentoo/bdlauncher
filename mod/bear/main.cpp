@@ -206,17 +206,25 @@ THook(void*,_ZN5BlockC2EtR7WeakPtrI11BlockLegacyE,Block* a,unsigned short x,void
     return ret;
 }
 
-unordered_map<Shash_t,clock_t> lastchat;
+unordered_map<STRING_HASH,clock_t> lastchat;
 int FChatLimit;
+ServerPlayer* lastchat_fast;
+clock_t lastchat_fast_c;
 static bool ChatLimit(ServerPlayer* p){
     if(!FChatLimit || p->getPlayerPermissionLevel()>1) return true;
-    auto hash=p->getNameTagAsHash();
+    if(lastchat_fast==p){
+        auto delta=clock()-lastchat_fast_c;
+        if(delta<=CLOCKS_PER_SEC/10) return false;
+    }
+    lastchat_fast=p;
+    lastchat_fast_c=clock();
+    auto hash=do_hash(p->getName());
     auto last=lastchat.find(hash);
     if(last!=lastchat.end()){
     auto old=last->second;
     auto now=clock();
     last->second=now;
-    if(now-old<CLOCKS_PER_SEC*0.25) return false;
+    if(now-old<CLOCKS_PER_SEC/10) return false;
     return true;
     }else{
         lastchat.insert({hash,clock()});
@@ -466,9 +474,9 @@ static void bangui_cmd(std::vector<string_view>& a,CommandOrigin const & b,Comma
         auto sp=getplayer_byname(nm);
         if(sp){
             SPBuf sb;
-            sb.write("ban \"");
+            sb.write("ban \""sv);
             sb.write(dst);
-            sb.write("\"");
+            sb.write("\""sv);
             runcmdAs(sb.get(),sp);
         }
     });

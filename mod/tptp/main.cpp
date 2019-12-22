@@ -193,39 +193,66 @@ static void oncmd_suic(std::vector<string_view>& a,CommandOrigin const & b,Comma
     KillActor(b.getEntity());
     outp.success("You are dead");
 }
-void sendTPForm(const string& from,int type,ServerPlayer* sp){
-    string cont=from+(type?" wants to teleport you to his location":"want to teleport to your location")+"\n";
-    string name=sp->getName();
-    auto lis=new list<pair<string,std::function<void()> > >();
-    lis->emplace_back(
-        "Accept",[name]{
-            auto x=getSrvLevel()->getPlayer(name);
-            if(x)
-                runcmdAs("tpa ac",x);
-        }
-    );
-    lis->emplace_back(
-        "Refuse",[name]{
-            auto x=getSrvLevel()->getPlayer(name);
-            if(x)
-                runcmdAs("tpa de",x);
-        }
-    );
-    gui_Buttons(sp,cont,"Teleport Request",lis);
-}
-void sendTPChoose(ServerPlayer* sp,const char* type){
+
+void sendTPChoose(ServerPlayer* sp,string_view type){
     string name=sp->getName();
     gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](string_view dest){
         auto xx=getSrvLevel()->getPlayer(name);
             if(xx){
                 SPBuf sb;
-                sb.write("tpa %s \"",type);
+                sb.write("tpa "sv);
+                sb.write(type);
+                sb.write(" \""sv);
                 sb.write(dest);
-                sb.write("\"");
+                sb.write("\""sv);
                 runcmdAs(sb.get(),xx);
                 //runcmdAs("tpa "+type+" "+SafeStr(dest),xx);
             }
     });
+}
+Form TPGUI,TPGUI2;
+StaticForm sTPGUI;
+string TPGUI2_str;
+void initTPGUI(){
+    TPGUI.setContent("Send teleport request")->setTitle("Send teleport request");
+    TPGUI.addButton("Teleport to a player","t");
+    TPGUI.addButton("Teleport a player to you","f");
+    TPGUI2.setTitle("Teleport Request")->setContent("%s %s");
+    TPGUI2.addButton("Accept"," ac");
+    TPGUI2.addButton("Refuse"," de");
+    sTPGUI.load(TPGUI);
+    TPGUI2_str=TPGUI2.getstr();
+    printf("%s\n",TPGUI2_str.c_str());
+}
+void sendTPForm(const string& from,int type,ServerPlayer* sp){
+    SPBuf<512>* sb=new SPBuf<512>();
+    sb->write(TPGUI2_str.c_str(),from.c_str(),(type?" wants to teleport you to his location":"want to teleport to your location"));
+    StaticForm* sf=new StaticForm();
+    sf->load(TPGUI2);
+    sf->buf=sb->get();
+    string name=sp->getName();
+    sf->cb=[name,sb](string_view sv){
+        auto spp=getplayer_byname(name);
+        if(spp){
+            SPBuf<128> sb2;
+            sb2.write("tpa"sv);
+            sb2.write(sv);
+            runcmdAs(sb2.get(),spp);
+        }
+        delete sb;
+    };
+    sendForm(*sp,sf);
+}
+void SendTPGUI(ServerPlayer* sp){
+    string name=sp->getName();
+    StaticForm* sf=new StaticForm(sTPGUI);
+    sf->cb=[name](string_view sv){
+        auto spp=getplayer_byname(name);
+        if(spp){
+            sendTPChoose((ServerPlayer*)spp,sv);
+        }
+    };
+    sendForm(*sp,sf);
 }
 static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanTP){
@@ -271,26 +298,10 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
         sendTPForm(name,0,(ServerPlayer*)dst);
     }
     if(a[0]=="gui"){
-        auto lis=new list<pair<string,std::function<void()> > >();
-        lis->emplace_back(
-            "Teleport to a player",[name]{
-                auto x=getSrvLevel()->getPlayer(name);
-                if(x)
-                {
-                    sendTPChoose((ServerPlayer*)x,"t");
-                }
-            }
-        );
-        lis->emplace_back(
-            "Teleport a player to you",[name]{
-                auto x=getSrvLevel()->getPlayer(name);
-                if(x)
-                {
-                    sendTPChoose((ServerPlayer*)x,"f");
-                }
-            }
-        );
-        gui_Buttons((ServerPlayer*)b.getEntity(),"Send teleport request","Send teleport request",lis);
+       auto sp=getSP(b.getEntity());
+       if(sp){
+           SendTPGUI(sp);
+       }
     }
     if(a[0]=="ac") {
         //accept
@@ -490,6 +501,7 @@ void mod_init(std::list<string>& modlist) {
     load();
     load_warps_new();
     load_cfg();
+    initTPGUI();
     register_cmd("suicide",oncmd_suic,"kill yourself");
     register_cmd("tpa",oncmd,"teleport command");
     register_cmd("home",oncmd_home,"home command");

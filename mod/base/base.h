@@ -8,6 +8,7 @@
 #include <vector>
 #include "db.hpp"
 #include<string_view>
+using namespace std::literals;
 using std::string_view;
 using std::function;
 using std::string;
@@ -139,4 +140,16 @@ int atoi(string_view sv){
     }
     return fg?-res:res;
 }
-#define BDL_TAG "V2019-12-19"
+typedef unsigned long STRING_HASH;
+
+STRING_HASH do_hash(string_view x){
+    auto sz=x.size();
+    auto c=x.data();
+    uint hash1=0;uint hash2=0;
+    for(int i=0;i<sz;++i){
+        hash1=(hash1*47+c[i])%1000000007;
+        hash2=(hash2*83+c[i])%1000000009;
+    }
+    return (((STRING_HASH)hash1)<<32)|hash2;
+}
+#define BDL_TAG "V2019-12-22"
