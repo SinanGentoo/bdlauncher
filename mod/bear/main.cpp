@@ -114,7 +114,7 @@ static bool hkc(ServerPlayer const * b,string& c) {
     async_log("[CHAT]%s: %s\n",b->getName().c_str(),c.c_str());
     return 1;
 }
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         auto tim=a.size()==1?0:(time(0)+atoi(a[1]));
@@ -127,7 +127,7 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
         outp.success("§b"+string(a[0])+" has been banned");
     }
 }
-static void oncmd2(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd2(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         ban_data.Del(a[0]);
@@ -136,8 +136,8 @@ static void oncmd2(std::vector<string_view>& a,CommandOrigin const & b,CommandOu
 }
 //add custom
 using std::unordered_set;
-static unordered_set<short> banitems,warnitems;
-
+//static unordered_set<short> banitems,warnitems;
+static static_deque<short,64> banitems,warnitems;
 static bool dbg_player;
 static int LOG_CHEST;
 THook(void*,_ZN15ChestBlockActor9startOpenER6Player,BlockActor& ac,Player& pl){
@@ -157,12 +157,12 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     //printf("dbg use %s\n",a0->getPlayer()->getCarriedItem().toString().c_str());
     if(a0->getPlayer()->getPlayerPermissionLevel()>1) return 1;
     string sn=a0->getPlayer()->getName();
-    if(banitems.count(a1->getId())){
+    if(banitems.has(a1->getId())){
         async_log("[ITEM] %s tries to use prohibited items(banned) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
         sendText(a0->getPlayer(),"§cUnable to use prohibited items",JUKEBOX_POPUP);
         return 0;
     }
-    if(warnitems.count(a1->getId())){
+    if(warnitems.has(a1->getId())){
         async_log("[ITEM] %s tries to use dangerous items(warn) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
         return 1;
     }
@@ -398,15 +398,17 @@ static void _load_config(){
     LOG_CHEST=d.HasMember("LogChest")?d["LogChest"].GetBool():false;
     auto&& x=d["banitems"].GetArray();
     for(auto& i:x){
-        banitems.insert((short)i.GetInt());
+        if(!banitems.full())
+        banitems.push_back((short)i.GetInt());
     }
     auto&& y=d["warnitems"].GetArray();
     for(auto& i:y){
-        warnitems.insert((short)i.GetInt());
+        if(!warnitems.full())
+        warnitems.push_back((short)i.GetInt());
     }
     free(buf);
 }
-static void load_config(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
+static void load_config(argVec& a,CommandOrigin const & b,CommandOutput &outp){
     _load_config();
 }
 static Shash_t lastn;
@@ -451,10 +453,10 @@ static int handle_dest(GameMode* a0,BlockPos const& a1,unsigned char a2) {
     }
     return 1;
 }
-static void toggle_dbg(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
+static void toggle_dbg(argVec& a,CommandOrigin const & b,CommandOutput &outp){
     dbg_player=!dbg_player;
 }
-static void kick_cmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void kick_cmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         if(a.size()==1) a.push_back("Kicked");
@@ -468,17 +470,13 @@ static void kick_cmd(std::vector<string_view>& a,CommandOrigin const & b,Command
         }
     }
 }
-static void bangui_cmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
-    string nm=b.getName();
-    gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"ban","ban",[nm](string_view dst){
-        auto sp=getplayer_byname(nm);
-        if(sp){
+static void bangui_cmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
+    gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"ban","ban",[](ServerPlayer* sp,string_view dst){
             SPBuf sb;
             sb.write("ban \""sv);
             sb.write(dst);
             sb.write("\""sv);
             runcmdAs(sb.get(),sp);
-        }
     });
 }
 THook(void*,_ZN5Actor9addEffectERK17MobEffectInstance,Actor& ac,MobEffectInstance* mi){
@@ -525,7 +523,7 @@ static string dumpall(ServerPlayer* sp){
     ret+=dumpSP_Ender(*sp)+"\n";
     return ret;
 }
-static void oncmd_invcheck(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_invcheck(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     auto sp=getSP(getplayer_byname2(a[0]));
     if(!sp){

@@ -189,72 +189,50 @@ struct tpreq {
     string name;
 };
 static unordered_map<string,tpreq> tpmap;
-static void oncmd_suic(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_suic(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     KillActor(b.getEntity());
     outp.success("You are dead");
 }
 
-static void sendTPChoose(ServerPlayer* sp,string_view type){
+static void sendTPChoose(ServerPlayer* sp,int type){ //0=t
     string name=sp->getName();
-    gui_ChoosePlayer(sp,"Select target player","Send teleport request",[name,type](string_view dest){
-        auto xx=getSrvLevel()->getPlayer(name);
-            if(xx){
-                SPBuf sb;
+    gui_ChoosePlayer(sp,"Select target player","Send teleport request",[type](ServerPlayer* xx,string_view dest){
+                SPBuf<512> sb;
                 sb.write("tpa "sv);
-                sb.write(type);
+                if(type==0) sb.write("t"); else sb.write("f");
                 sb.write(" \""sv);
                 sb.write(dest);
                 sb.write("\""sv);
                 runcmdAs(sb.get(),xx);
-                //runcmdAs("tpa "+type+" "+SafeStr(dest),xx);
-            }
     });
 }
-static Form TPGUI,TPGUI2;
-static StaticForm sTPGUI;
-static string TPGUI2_str;
-static void initTPGUI(){
-    TPGUI.setContent("Send teleport request")->setTitle("Send teleport request");
-    TPGUI.addButton("Teleport to a player","t");
-    TPGUI.addButton("Teleport a player to you","f");
-    TPGUI2.setTitle("Teleport Request")->setContent("%s %s");
-    TPGUI2.addButton("Accept"," ac");
-    TPGUI2.addButton("Refuse"," de");
-    sTPGUI.load(TPGUI);
-    TPGUI2_str=TPGUI2.getstr();
-    printf("%s\n",TPGUI2_str.c_str());
-}
+
 static void sendTPForm(const string& from,int type,ServerPlayer* sp){
-    SPBuf<512>* sb=new SPBuf<512>();
-    sb->write(TPGUI2_str.c_str(),from.c_str(),(type?" wants to teleport you to his location":"want to teleport to your location"));
-    StaticForm* sf=new StaticForm();
-    sf->load(TPGUI2);
-    sf->buf=sb->get();
-    string name=sp->getName();
-    sf->cb=[name,sb](string_view sv){
-        auto spp=getplayer_byname(name);
-        if(spp){
-            SPBuf<128> sb2;
-            sb2.write("tpa"sv);
-            sb2.write(sv);
-            runcmdAs(sb2.get(),spp);
-        }
-        delete sb;
+    SPBuf<512> sb;
+    sb.write(from);
+    sb.write((type?" wants to teleport you to his location":"want to teleport to your location"));
+    SharedForm* sf=getForm("TP Request",sb.get());
+    sf->addButton("Accept");
+    sf->addButton("Refuse");
+    sf->cb=[](ServerPlayer* sp,string_view choice,int idx){
+        idx==0?runcmdAs("tpa ac",sp):runcmdAs("tpa de",sp);
     };
     sendForm(*sp,sf);
 }
+SharedForm TPGUI("Send teleport request","Send teleport request",false);
 static void SendTPGUI(ServerPlayer* sp){
-    string name=sp->getName();
-    StaticForm* sf=new StaticForm(sTPGUI);
-    sf->cb=[name](string_view sv){
-        auto spp=getplayer_byname(name);
-        if(spp){
-            sendTPChoose((ServerPlayer*)spp,sv);
-        }
-    };
-    sendForm(*sp,sf);
+    sendForm(*sp,&TPGUI);
 }
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void initTPGUI(){
+    TPGUI.addButton("Teleport to a player");
+    TPGUI.addButton("Teleport a player to you");
+    TPGUI.cb=[](ServerPlayer* sp,string_view sv,int idx){
+        sendTPChoose(sp,idx);
+    };
+}
+static unordered_map<string,string> player_target;
+
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanTP){
         outp.error("Teleport not enabled on this server!");
         return;
@@ -274,9 +252,14 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
             return;
         }
         if(tpmap.count(dnm)) {
+            outp.error("A request of your target is pending.");
+            return;
+        }
+        if(player_target.count(dnm)){
             outp.error("You have already initiated the request");
             return;
         }
+        player_target[name]=dnm;
         tpmap[dnm]= {0,name};
         outp.success("§bYou sent a teleport request to the target player");
         sendText(dst,"§b"+name+" a wants you to teleport to his location,you can enter \"/tpa ac\" to accept or \"/tpa de\" to reject");
@@ -289,13 +272,28 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
             return;
         }
         if(tpmap.count(dnm)) {
+            outp.error("A request of your target is pending.");
+            return;
+        }
+        if(player_target.count(dnm)){
             outp.error("You have already initiated the request");
             return;
         }
+        player_target[name]=dnm;
         tpmap[dnm]= {1,name};
         outp.success("§bYou sent a teleport request to the target player");
         sendText(dst,"§b"+name+" a wants to teleport to your location,you can enter \"/tpa ac\" to accept or \"/tpa de\" to reject");
         sendTPForm(name,0,(ServerPlayer*)dst);
+    }
+    if(a[0]=="cancel"){
+        //cancel req
+        if(player_target.count(name)){
+            auto& nm=player_target[name];
+            if(tpmap.count(nm) && tpmap[nm].name==name){
+                tpmap.erase(nm);
+                outp.success("cancelled");
+            }
+        }
     }
     if(a[0]=="gui"){
        auto sp=getSP(b.getEntity());
@@ -309,6 +307,7 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
         tpreq req=tpmap[name];
         tpmap.erase(name);
         outp.success("§bYou have accepted the send request from the other party");
+        player_target.erase(req.name);
         dst=getplayer_byname(req.name);
         if(dst) {
             sendText(dst,"§b "+name+" accepted the transmission request");
@@ -326,22 +325,22 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
         tpreq req=tpmap[name];
         tpmap.erase(name);
         outp.success("§bYou have rejected the send request");
+        player_target.erase(req.name);
         dst=getplayer_byname(req.name);
         if(dst)
             sendText(dst,"§b "+name+" rejected the transmission request");
     }
 }
 
-static void oncmd_home(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_home(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanHome){
         outp.error("Home not enabled on this server!");
         return;
     }
     int pl=(int)b.getPermissionsLevel();
     string name=b.getName();
-    string homen=a.size()==2?string(a[1]):"hape";
+    string_view homen=a.size()==2?string(a[1]):"hape";
     Vec3 pos=b.getWorldPosition();
-    //printf("%f %f %f\n",pos.x,pos.y,pos.z);
     ARGSZ(1)
     if(a[0]=="add") {
         home& myh=getHome(name);
@@ -349,7 +348,7 @@ static void oncmd_home(std::vector<string_view>& a,CommandOrigin const & b,Comma
             outp.error("Can't add more homes");
             return;
         }
-        myh.vals[myh.cnt]=Vpos(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),homen);
+        myh.vals[myh.cnt]=Vpos(pos.x,pos.y,pos.z,b.getEntity()->getDimensionId(),string(homen));
         myh.cnt++;
         putHome(name,myh);
         outp.success("§bSuccessfully added a home");
@@ -387,7 +386,7 @@ static void oncmd_home(std::vector<string_view>& a,CommandOrigin const & b,Comma
     }
     if(a[0]=="gui"){
         home& myh=getHome(name);
-        auto lis=new list<pair<string,std::function<void()> > >();
+        /*auto lis=new list<pair<string,std::function<void()> > >();
         for(int i=0; i<myh.cnt; ++i) {
             string warpname=myh.vals[i].name;
             lis->emplace_back(
@@ -399,10 +398,23 @@ static void oncmd_home(std::vector<string_view>& a,CommandOrigin const & b,Comma
                 }
             );
         }
-        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a home","Home",lis);
+        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a home","Home",lis);*/
+        auto sf=getForm("Home","Please choose a home");
+        for(int i=0; i<myh.cnt; ++i) {
+            auto& hname=myh.vals[i].name;
+            sf->addButton(hname);
+        }
+        sf->cb=[](ServerPlayer* sp,string_view sv,int idx){
+            SPBuf<512> sb;
+            sb.write("home go \"");
+            sb.write(sv);
+            sb.write("\"");
+            runcmdAs(sb.get(),sp);
+        };
+        sendForm(*(ServerPlayer*)b.getEntity(),sf);
     }
 }
-static void oncmd_warp(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_warp(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     int pl=(int)b.getPermissionsLevel();
     // printf("pl %d\n",pl);
     string name=b.getName();
@@ -431,7 +443,7 @@ static void oncmd_warp(std::vector<string_view>& a,CommandOrigin const & b,Comma
         return;
     }
     if(a[0]=="gui"){
-        auto lis=new list<pair<string,std::function<void()> > >();
+        /*auto lis=new list<pair<string,std::function<void()> > >();
         string nam=b.getName();
         for(auto const& i:warp_list) {
             string warpname=i;
@@ -444,7 +456,20 @@ static void oncmd_warp(std::vector<string_view>& a,CommandOrigin const & b,Comma
                 }
             );
         }
-        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a warp","Warp",lis);
+        gui_Buttons((ServerPlayer*)b.getEntity(),"Please choose a warp","Warp",lis);*/
+        auto sf=getForm("Home","Please choose a home");
+        for(auto const&i:warp_list) {
+            auto& hname=i;
+            sf->addButton(hname);
+        }
+        sf->cb=[](ServerPlayer* sp,string_view sv,int idx){
+            SPBuf<512> sb;
+            sb.write("warp \"");
+            sb.write(sv);
+            sb.write("\"");
+            runcmdAs(sb.get(),sp);
+        };
+        sendForm(*(ServerPlayer*)b.getEntity(),sf);
     }
     //go
     auto it=warp.find(string(a[0]));
@@ -456,7 +481,7 @@ static void oncmd_warp(std::vector<string_view>& a,CommandOrigin const & b,Comma
 }
 
 static unordered_map<Shash_t,pair<Vec3,int> > deathpoint;
-static void oncmd_back(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_back(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if(!CanBack) {outp.error("Back not enabled on this server"); return;}
     ServerPlayer* sp=(ServerPlayer*)b.getEntity();
     if(!sp) return;

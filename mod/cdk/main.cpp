@@ -35,7 +35,7 @@ static void async_log(const char* fmt,...) {
 }
 static void save();
 unordered_map<string,string> cdks;
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     string cdk=string(a[0]);
     if(!cdks.count(cdk)) {outp.error("Invalid cdk");return;}

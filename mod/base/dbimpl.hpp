@@ -11,12 +11,7 @@ using std::function;
 using std::string;
 using std::string_view;
 using leveldb::Slice;
-struct LDBImpl
-{
-    leveldb::DB *db;
-    leveldb::ReadOptions rdopt;
-    leveldb::WriteOptions wropt;
-    void load(const char *name, bool read_cache=true){
+    BDL_EXPORT void LDBImpl::load(const char *name, bool read_cache){
         rdopt = leveldb::ReadOptions();
         wropt = leveldb::WriteOptions();
         rdopt.fill_cache = read_cache;
@@ -30,23 +25,23 @@ struct LDBImpl
         }
         assert(status.ok());
     }
-    LDBImpl(const char *name, bool read_cache=true)
+    BDL_EXPORT LDBImpl::LDBImpl(const char *name, bool read_cache)
     {
         load(name,read_cache);
     }
-    void close(){
+    BDL_EXPORT void LDBImpl::close(){
         delete db;
     }
-    ~LDBImpl()
+    BDL_EXPORT LDBImpl::~LDBImpl()
     {
         close();
     }
-    bool Get(string_view key, string &val) const
+    BDL_EXPORT bool LDBImpl::Get(string_view key, string &val) const
     {
         auto s = db->Get(rdopt, Slice(key.data(),key.size()), &val);
         return s.ok();
     }
-    void Put(string_view key, string_view val)
+    BDL_EXPORT void LDBImpl::Put(string_view key, string_view val)
     {
         auto s = db->Put(wropt, Slice(key.data(),key.size()), Slice(val.data(),val.size()));
         if (!s.ok())
@@ -54,12 +49,12 @@ struct LDBImpl
             printf("[DBError] %s\n", s.ToString().c_str());
         }
     }
-    bool Del(string_view key)
+    BDL_EXPORT bool LDBImpl::Del(string_view key)
     {
         auto s = db->Delete(wropt, Slice(key.data(),key.size()));
         return s.ok();
     }
-    void Iter(function<void(string_view, string_view)> fn) const
+    BDL_EXPORT void LDBImpl::Iter(function<void(string_view, string_view)> fn) const
     {   
         leveldb::Iterator *it = db->NewIterator(rdopt);
         for (it->SeekToFirst(); it->Valid(); it->Next())
@@ -70,7 +65,6 @@ struct LDBImpl
         }
         delete it;
     }
-    void CompactAll(){
+    BDL_EXPORT void LDBImpl::CompactAll(){
         db->CompactRange(nullptr,nullptr);
     }
-};

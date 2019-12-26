@@ -251,7 +251,7 @@ cid 0 flg 0 src 0 slot 2 get 0 0 x (0)@0 64 x Chest(54)@0
 */
 }
 
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp){
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp){
     ARGSZ(1)
     auto name=b.getName();
     if(a[0]=="buy"){

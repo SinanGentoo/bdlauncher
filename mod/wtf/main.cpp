@@ -2,7 +2,6 @@
 #include<MC.h>
 #include"../base/base.h"
 #include"../cmdhelper.h"
-#include"../base/db.hpp"
 #include"../serial/seral.hpp"
 extern "C" {
    BDL_EXPORT void mod_init(std::list<string>& modlist);

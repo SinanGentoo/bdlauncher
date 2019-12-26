@@ -7,7 +7,7 @@ extern "C" {
    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(2)
     MyPkt trpk(0x55,[&](void*,BinaryStream& x)->void{
         x.writeUnsignedVarInt(a[0].size());

@@ -16,7 +16,7 @@ using std::vector;
 #include"utils.hpp"
 #include<sstream>
 #include"base.h"
-#include"db.hpp"
+#include"dbimpl.hpp"
 extern "C" {
    BDL_EXPORT void mod_init(list<string>& modlist);
 }
@@ -36,7 +36,22 @@ void split_string(string_view s, std::vector<std::string_view>& v, string_view c
   if(pos1 != s.length())
     v.emplace_back(s.data()+pos1,s.size()-pos1);
 }
-bool execute_cmd_random(const vector<string_view>& chain){
+void split_string(string_view s, static_deque<std::string_view>& v, string_view c)
+{
+  std::string::size_type pos1, pos2;
+  pos2 = s.find(c);
+  pos1 = 0;
+  while(std::string::npos != pos2)
+  {
+    v.push_back(s.substr(pos1, pos2-pos1)); //
+    pos1 = pos2 + c.size();
+    pos2 = s.find(c, pos1);
+    if(v.full()) return;
+  }
+  if(pos1 != s.length() && !v.full())
+    v.push_back(string_view(s.data()+pos1,s.size()-pos1));
+}
+bool execute_cmd_random(const static_deque<string_view>& chain){
     int rd=rand()%chain.size();
     return execute_cmdchain(chain[rd],"",false);
 }
@@ -60,11 +75,11 @@ bool execute_cmdchain(string_view chain,string_view sp,bool chained){
     }
     auto chainxx=string_view(buf,bufsz);
     if(chainxx[0]=='!'){
-        vector<string_view> dst;
+        static_deque<string_view> dst;
         split_string(chainxx.substr(1),dst,";");
         return execute_cmd_random(dst);
     }
-    vector<string_view> dst;
+    static_deque<string_view> dst;
     split_string(chainxx,dst,",");
     for(auto& i:dst){
         auto res=runcmd(i);
@@ -129,7 +144,13 @@ void sendText(Player* a,string_view ct,TextType type) {
     gTextPkt.setText(ct,type);
     gTextPkt.send(a);
 }
-
+void broadcastText(Player* a,string_view ct,TextType type){
+    gTextPkt.setText(ct,type);
+    auto& vc=*getSrvLevel()->getUsers();
+    for(auto& i:vc){
+        gTextPkt.send(i.get());
+    }
+}
 static TeleportCommand cmd_p;
 
 extern void load_helper(list<string>& modlist);
@@ -145,27 +166,14 @@ void KillActor(Actor* a) {
     //!!! dirty workaround
     ((Mob*)a)->kill();
 }
-/*
-Player* getplayer_byname(const string& name) {
-    Level* lv=getSrvLevel();
-    Player* rt=NULL;
-    lv->forEachPlayer([&](Player& tg)->bool{
-        if(tg.getRealNameTag()==name) {
-            rt=&tg;
-            return false;
-        }
-        return true;
-    });
-    return rt;
-}*/
 
 #define fcast(a,b) (*((a*)(&b)))
-Player* getplayer_byname2(string_view name) {
-    Level* lv=getSrvLevel();
-    Player* rt=NULL;
-    lv->forEachPlayer([&](Player& tg)->bool{
-        string bf=tg.getRealNameTag();
-#define min(a,b) ((a)<(b)?(a):(b))
+ServerPlayer* getplayer_byname2(string_view name) {
+    ServerPlayer* rt=NULL;
+    auto vc=getSrvLevel()->getUsers();
+    for(auto& tg:*vc){
+        string bf=tg->getName();
+        #define min(a,b) ((a)<(b)?(a):(b))
         int sz=min(bf.size(),name.size());
         int eq=1;
         for(int i=0; i<sz; ++i) {
@@ -175,19 +183,15 @@ Player* getplayer_byname2(string_view name) {
             }
         }
         if(eq) {
-            rt=&tg;
-            return false;
+            rt=tg.get();
+            return rt;
         }
-        return true;
-    });
+        continue;
+    }
     return rt;
 }
 
 void get_player_names(vector<string>& a){
-    /*getSrvLevel()->forEachPlayer([&](Player& tg)->bool{
-        a.emplace_back(tg.getName());
-        return true;
-    });*/
     auto vc=getSrvLevel()->getUsers();
     for(auto& i:*vc){
         a.emplace_back(i->getName());
@@ -250,9 +254,42 @@ ServerPlayer* getuser_byname(string_view a){
 void forceKickPlayer(ServerPlayer& sp){
     sp.disconnect();
 }
-
+extern "C"{
+	void _ZTV19ServerCommandOrigin();
+	void _ZN19ServerCommandOriginD2Ev();
+};
+void* fake_vtbl[(0x000000000ABE2610-0x000000000ABE2528)/8];
+static ServerCommandOrigin* SCO;
+static string sname("Server");
+extern "C"{
+    MCRESULT _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MinecraftCommands*,CommandOrigin**,std::string const &, int, bool);
+};
+BDL_EXPORT MCRESULT runcmd(string_view a) {
+    //ServerOrigin is const so we can simply share it here
+    //char fakeOrigin[72];
+    CommandOrigin** ori_ptr=(CommandOrigin**)&SCO;
+    if(!SCO){
+        SCO=new ServerCommandOrigin(sname,*(ServerLevel*)MC->getLevel(),(CommandPermissionLevel)5);
+        access(SCO,void*,0)=fake_vtbl+2;
+    }
+    //memcpy(fakeOrigin,SCO,sizeof(fakeOrigin));
+    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MC->getCommands(),ori_ptr,string(a),4,1);
+}
+struct PlayerCommandOrigin{
+    char filler[72];
+    PlayerCommandOrigin(Player&);
+};
+BDL_EXPORT MCRESULT runcmdAs(string_view a,Player* sp) {
+    auto ori=(CommandOrigin*)new PlayerCommandOrigin(*sp);
+    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MC->getCommands(),&ori,string(a),4,1);       
+}
+static void dummy__(){}
 void mod_init(list<string>& modlist)
 {
+    uintptr_t* pt=(uintptr_t*)_ZTV19ServerCommandOrigin;
+    memcpy(fake_vtbl,(void*)_ZTV19ServerCommandOrigin,sizeof(fake_vtbl));
+    printf("[BASE] fake vtable pt %p %p %p %p\n",pt[0],pt[1],pt[2],_ZN19ServerCommandOriginD2Ev); //pt[3]=D0ev
+    fake_vtbl[3]=(void*)dummy__; //fix free(ServerCommandOrigin)
     mkdir("data_v2",S_IRWXU);
     printf("[MOD/BASE] loaded! " BDL_TAG "\n");   	
     set_int_handler(fp(autostop));		

@@ -481,9 +481,10 @@ public:
     int getCommandPermissionLevel() const;
     Certificate &getCertificate() const;
     bool canUseAbility(AbilitiesIndex) const;
-    std::string getName() const
+    inline const std::string& getName() const
     {
-        return getRealNameTag();
+        return getNameTag();
+        //return getRealNameTag();
     }
     std::string getRealNameTag() const
     {

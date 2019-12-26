@@ -1,6 +1,6 @@
 #include<list>
 #include<unordered_map>
-#include"../base/db.hpp"
+#include"../base/base.h"
 #include"../serial/seral.hpp"
 #include<sys/cdefs.h>
 #define access(ptr,type,off) (*((type*)(((uintptr_t)ptr)+off)))
@@ -62,7 +62,7 @@ static_assert(offsetof(FastLand,refcount)==20);
 struct DataLand{
     lpos_t x,z,dx,dz;
     uint lid;
-    short refcount;
+    short ver;
     char dim;
     LandPerm perm;
     string owner;
@@ -91,11 +91,10 @@ struct DataLand{
         owner.erase(pos,sv.size());
     }
     void packto(DataStream& ds) const{
-        ds<<x<<z<<dx<<dz<<lid<<(short)0<<dim<<perm<<owner;
+        ds<<x<<z<<dx<<dz<<lid<<ver<<dim<<perm<<owner; //version
     }
     void unpack(DataStream& ds){
-        short pad;
-        ds>>x>>z>>dx>>dz>>lid>>pad>>dim>>perm>>owner;
+        ds>>x>>z>>dx>>dz>>lid>>ver>>dim>>perm>>owner; //refcount=version
     }
 };
 static_assert(sizeof(DataLand)==24+sizeof(string));
@@ -243,14 +242,10 @@ static inline void purge_cache(){
 static inline ChunkLandManager* getChunkMan(lpos_t x,lpos_t z,int dim){
     return CLMan.get_or_build(x,z,dim);
 }
-static inline lpos_t to_lpos(int p){
-    return p+200000;
-} 
 static inline FastLand* getFastLand(int x,int z,int dim){
     lpos_t xx,zz;
-    if(unlikely(x<-200000 || z<-200000)) return nullptr;
-    xx=to_lpos(x);
-    zz=to_lpos(z);
+    xx=(x)^0x80000000;
+    zz=(z)^0x80000000;
     auto cm=getChunkMan(xx>>4,zz>>4,dim);
     return cm->lands[xx&15][zz&15];
 }
@@ -341,6 +336,7 @@ static void addLand(lpos_t x,lpos_t dx,lpos_t z,lpos_t dz,int dim,const string& 
 }
 static void updLand(DataLand& ld){
     auto lid=ld.lid;
+    ld.ver=1; //NEW
     DataStream ds;
     char buf[6];
     buf[0]='l';buf[1]='_';
@@ -418,12 +414,21 @@ void CHECK_AND_FIX_ALL(){
     for(auto& nowLand:lands){
         DataStream ds;
         auto& Land=nowLand.second;
+        if(Land.ver==0){
+            printf("upgrade land %d\n",Land.lid);
+            Land.ver=1;
+            int xx=Land.x-200000;
+            int zz=Land.z-200000;
+            Land.x=xx^(0x80000000);
+            Land.z=zz^(0x80000000);
+            xx=Land.dx-200000;
+            zz=Land.dz-200000;
+            Land.dx=xx^(0x80000000);
+            Land.dz=zz^(0x80000000);
+        }
         ds<<Land;
         db.Put(nowLand.first,ds.dat);
-        if(Land.lid==81){
-            printf("call\n");
-            proc_chunk_add(Land.x,Land.dx,Land.z,Land.dz,Land.dim,Land.lid);
-        }
+        proc_chunk_add(Land.x,Land.dx,Land.z,Land.dz,Land.dim,Land.lid);
     }
     db.CompactAll();
     printf("[LAND/LCK] Done land data fix!\n",lands.size());

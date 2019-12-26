@@ -39,28 +39,22 @@ struct Timer{
 };
 
 struct CMDForm{
-    unordered_map<STRING_HASH,CMD> cmds;
-    vector<string> ordered_cmds;
-    string content;
-    string title;
-    Form base;
-    StaticForm sbase;
+    vector<std::pair<string,CMD> > ordered_cmds;
+    SharedForm* sf;
     void sendTo(ServerPlayer& sp){
-        string nm=sp.getNameTag(); //!!! fix BUG: setname("newname")
-        StaticForm* sf=new StaticForm(sbase);
-        sf->cb=[this,nm](string_view s)->void{
-            auto hs=do_hash(s);
-            auto it=cmds.find(hs);
-            if(it!=cmds.end())
-                it->second.execute(nm);
-        };
         sendForm(sp,sf);
     }
-    void init(){
-        base.setContent(content)->setTitle(title);
-        for(auto& i:ordered_cmds)
-            base.addButton(i,i);
-        sbase.load(base);
+    ~CMDForm(){
+        delete sf;
+    }
+    void init(string_view content,string_view title){
+        sf=new SharedForm(title,content,false);
+        for(auto& i:ordered_cmds){
+            sf->addButton(i.first);
+        }
+        sf->cb=[this](ServerPlayer* sp,string_view,int idx){
+            ordered_cmds[idx].second.execute(sp->getName());
+        };
     }
 };
 static unordered_map<STRING_HASH,CMDForm> forms;
@@ -77,7 +71,7 @@ struct Oneshot{
 };
 static priority_queue<Oneshot> oneshot_timers;
 static CMD joinHook;
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if(a.size()==0) a.emplace_back("root");
     auto hs=do_hash(a[0]);
     if(forms.count(hs)){
@@ -89,7 +83,6 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
         }else{
             outp.error("fucku");
         }
-        //outp.success("gui showed");
     }else{
         outp.error("cant find");
     }
@@ -146,13 +139,11 @@ static void load(){
         }
         if(typ=="form"){
             auto&& buttons=x["buttons"];
-            auto&& cont=x["text"];
-            auto&& title=x["title"];
+            auto&& cont=x["text"].GetString();
+            auto&& title=x["title"].GetString();
 	        auto&& name=x["name"];
             assert(buttons.IsArray());
             auto& cf=forms[do_hash(name.GetString())];
-            cf.title=title.GetString();
-            cf.content=cont.GetString();
             for(auto& i:buttons.GetArray()){
                 assert(i.IsArray());
                 auto&& but=i.GetArray();
@@ -164,10 +155,9 @@ static void load(){
                     }
                     exit(0);
                 }
-                cf.cmds.emplace(do_hash(but[0].GetString()),CMD(but[1].GetString(),but[2].GetString()));
-                cf.ordered_cmds.emplace_back(but[0].GetString());
+                cf.ordered_cmds.emplace_back(make_pair(string(but[0].GetString()),CMD(but[1].GetString(),but[2].GetString())));
             }
-            cf.init();
+            cf.init(cont,title);
         }
         if(typ=="timer"){
             timers.emplace_back(x["time"].GetInt(),x["shift"].GetInt(),CMD("",x["cmd"].GetString()));
@@ -197,7 +187,7 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     }
     return 1;
 }
-static void oncmd_sch(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_sch(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if((int)b.getPermissionsLevel()<1) return;
     ARGSZ(3)
     int dtime=atoi(a[0]);
@@ -206,7 +196,7 @@ static void oncmd_sch(std::vector<string_view>& a,CommandOrigin const & b,Comman
     oneshot_timers.emplace(tkl/20+dtime,name,chain);
     outp.success();
 }
-static void oncmd_runas(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd_runas(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     if((int)b.getPermissionsLevel()<1) return;
     ARGSZ(1)
     auto sp=getplayer_byname(a[0]);

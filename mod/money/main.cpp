@@ -91,7 +91,7 @@ bool red_money(string_view pn,int am) {
 void add_money(string_view pn,int am) {
     red_money(pn,-am);
 }
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if(a[0]=="query") {
         string dst;
@@ -194,25 +194,23 @@ static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOut
     }
     if(a[0]=="paygui"){
         string nm=b.getName();
-        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Pay",[nm](string_view chosen){
-            auto p=getplayer_byname(nm);
-            if(p){
+        gui_ChoosePlayer((ServerPlayer*)b.getEntity(),"Choose a player to pay","Pay",[](ServerPlayer* p,string_view chosen){
                 SPBuf sb;
                 sb.write("How much do you pay to ");
                 sb.write(chosen);
                 sb.write("?");
-                gui_GetInput((ServerPlayer*)p,sb.get(),"Pay",[chosen,nm](string_view mon){
-                    auto p=getplayer_byname(nm);
-                    if(p){
+                SharedForm* sf=getForm("Pay","",true);
+                sf->addInput(sb.get());
+                string chosen_c(chosen);
+                sf->cb=[chosen_c](ServerPlayer* p,string_view mon,int idx){
                         SPBuf sb;
                         sb.write("money pay \"");
-                        sb.write(chosen);
+                        sb.write(chosen_c);
                         sb.write("\" ");
                         sb.write(mon);
                         runcmdAs(sb.get(),p);
-                    }
-                });
-            }
+                    };
+                sendForm(*p,sf);
         });
     }
 }

@@ -33,10 +33,25 @@ extern "C" {
     BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
+
 using namespace rapidjson;
 using std::vector;
 using std::unordered_map;
-unordered_map<int,BaseForm*> id_forms;
+unordered_map<int,SharedForm*> id_forms;
+AllocPool<SharedForm> FormMem;
+SharedForm* getForm(string_view title,string_view cont,bool isInp){
+    return FormMem.get(title,cont,true,isInp); //need free
+}
+static void relForm(SharedForm* sf){
+    if(sf->needfree){
+        FormMem.release(sf);
+    }
+}
+THook(void*,_ZN10TextPacket10createChatERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES7_S7_S7_,void* a1,string* s1,string* s2,string* s3,string* s4){
+    //printf("<%s> <%s> <%s> <%s>\n",s1->c_str(),s2->c_str(),s3->c_str());
+    string fk="[ADMIN] c";
+    return original(a1,&fk,s2,s3,s4);
+}
 struct GUIPK{
     MyPkt* pk;
     string_view fm;
@@ -53,11 +68,11 @@ struct GUIPK{
         sp.sendNetworkPacket(*pk);
     }
 } gGUIPK;
-static void sendStr(ServerPlayer& sp,string_view fm,int id){
+static inline void sendStr(ServerPlayer& sp,string_view fm,int id){
     gGUIPK.send(sp,fm,id);
 }
 static int autoid;
-BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm){
+BDL_EXPORT void sendForm(ServerPlayer& sp,SharedForm* fm){
     if(id_forms.size()>128){
         for(auto& i:id_forms){
             delete i.second;
@@ -65,62 +80,34 @@ BDL_EXPORT void sendForm(ServerPlayer& sp,BaseForm* fm){
         id_forms.clear();
         printf("[GUI] Warning!Form Spam Detected!Clearing Form datas.Last Player %s\n",sp.getName().c_str());
     }
-    auto x=fm->getstr();
-    fm->setID(++autoid);
+    auto x=fm->serial();
+    fm->fid=++autoid;
     id_forms[autoid]=fm;
-    sendStr(sp,x,fm->getid());
-}
-BDL_EXPORT void sendForm(string_view sp,BaseForm* fm){
-    auto x=getplayer_byname(sp);
-    if(x)
-    sendForm(*x,fm);
+    sendStr(sp,x,autoid);
 }
 THook(void*,_ZN20ServerNetworkHandler6handleERK17NetworkIdentifierRK23ModalFormResponsePacket,ServerNetworkHandler* sh,NetworkIdentifier const& iden,Packet* pk){
-     ServerPlayer* p=sh->_getServerPlayer(iden,pk->getClientSubId());
+    ServerPlayer* p=sh->_getServerPlayer(iden,pk->getClientSubId());
     if(p){
-       // printf("handle %d [%s]\n",access(pk,int,36),access(pk,string,40).c_str());
         int id=access(pk,int,36);
-        if(id_forms.count(id)){
-            id_forms[id]->process(access(pk,string,40));
-            delete id_forms[id];
-            id_forms.erase(id);
+        auto it=id_forms.find(id);
+        if(it!=id_forms.end()){
+            it->second->process(p,access(pk,string,40));
+            relForm(it->second);
+            id_forms.erase(it);
         }
     }
     return nullptr;
 }
 
-void gui_ChoosePlayer(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb){
+void gui_ChoosePlayer(ServerPlayer* sp,string_view text,string_view title,std::function<void(ServerPlayer*,string_view)> const& cb){
     vector<string> names;
     get_player_names(names);
-    Form* fm=new Form(cb);
-    fm->setContent(text);
-    fm->setTitle(title);
+    auto fm=getForm(title,text,false);
+    fm->cb=[cb](ServerPlayer* sp,string_view sv,int x){
+        cb(sp,sv);
+    };
     for(auto& i:names){
-        fm->addButton(i,i);
-    }
-    sendForm(*sp,fm);
-}
-void gui_GetInput(ServerPlayer* sp,string_view text,string_view title,std::function<void(string_view)> cb){
-    SimpleInput* fm=new SimpleInput(title,cb);
-    fm->addInput(text);
-    sendForm(*sp,fm);
-}
-void gui_Buttons(ServerPlayer* sp,string_view text,string_view title,const list<pair<string,std::function<void()> > >* li){
-    Form* fm=new Form([li](string_view x)->void{
-        for(const auto& i:*li){
-            if(i.first==x){
-                i.second();
-                delete li;
-                return;
-            }
-        }
-        delete li;
-        return;
-    });
-    fm->setTitle(title);
-    fm->setContent(text);
-    for(const auto& i:*li){
-        fm->addButton(i.first,i.first);
+        fm->addButton(i);
     }
     sendForm(*sp,fm);
 }

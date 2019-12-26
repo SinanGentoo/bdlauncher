@@ -60,23 +60,23 @@ void load(){
     float* pp=(float*)(((uintptr_t)dlsym(NULL,"_ZN10LevelChunk4tickER11BlockSourceRK4Tick"))+0x19b1698);
     //to +10000 bytes 26590000
     int newSpawnDist=dc["pVal"].GetInt();
-    //int hit=-1;
-    /*for(int i=0;i<10000;++i){
+    int hit=-114514;
+    for(int i=-5000;i<10000;++i){
         if(pp[i]==9216){
             printf("found %d\n",i);
-            if(hit!=-1){
+            if(hit!=-114514){
                 printf("[OPTI] Warning!!!Broken patch dected.Wont Patch it!\n");
-                hit=-1;
+                hit=-114514;
                 break;
             }
             hit=i;
         }
-    }*/
-    if(*pp!=9216){
+    }
+    if(hit==-114514){
         printf("[OPTI] Warning!!!Broken patch dected.Wont Patch it!\n");
         return;
     }
-    float* patch=pp;
+    float* patch=pp+hit;
     mprotect((void*)ROUND_PAGE_DOWN((ulong)patch),(ROUND_PAGE_UP((ulong)patch)-ROUND_PAGE_DOWN((ulong)patch)),PROT_WRITE|PROT_READ|PROT_EXEC);
     *pp=newSpawnDist;
 }

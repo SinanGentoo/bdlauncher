@@ -1,6 +1,8 @@
 # bdlauncher
 A flexible , simple and easy-to-install third-party BedrockServer launcher with mods support (1.14 testing)  
-!!!WARNING:1.14 only for testing  
+
+# !!!WARNING:1.14 only for testing DONT USE IT IN PRODUCTION ENVIRONMENT
+
 Only for Linux servers  
 只支持Linux服务器  
 telegram group https://t.me/bdlauncher  

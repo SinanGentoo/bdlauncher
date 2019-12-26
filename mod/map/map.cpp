@@ -40,7 +40,7 @@ static void loaddata(const char* fn){
 extern "C"{
     Packet* _ZNK16MapItemSavedData17getFullDataPacketEv(MapItemSavedData*,char*);
 };
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     string datname=string(a[0]);
     Player& pl=*(Player*)b.getEntity();

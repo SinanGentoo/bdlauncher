@@ -1,24 +1,13 @@
-static string sname("Server");
-BDL_EXPORT MCRESULT runcmd(string_view a) {
-    //printf("runcmd %s\n",a.c_str());
-    return getMC()->getCommands()->requestCommandExecution(std::unique_ptr<CommandOrigin>((CommandOrigin*)new ServerCommandOrigin(sname,*(ServerLevel*)getMC()->getLevel(),(CommandPermissionLevel)5)),string(a),4,1);
-}
-struct PlayerCommandOrigin{
-    char filler[512];
-    PlayerCommandOrigin(Player&);
-};
-BDL_EXPORT MCRESULT runcmdAs(string_view a,Player* sp) {
-    return getMC()->getCommands()->requestCommandExecution(std::unique_ptr<CommandOrigin>((CommandOrigin*)new PlayerCommandOrigin(*sp)),string(a),4,1);
-}
 
-static void (*dummy)(std::vector<string_view>&,CommandOrigin const &,CommandOutput &outp);
+static void (*dummy)(argVec&,CommandOrigin const &,CommandOutput &outp);
         #include<iostream>
-static void mylex(string_view oper,std::vector<string_view>& out) {
+static void mylex(string_view oper,argVec& out) {
     //simple lexer
     size_t sz=oper.size();
     const char* c=oper.data();
     size_t tot=0;
     while(tot<sz){
+        if(out.full()) return;
         char now=c[tot];
         if(now=='"'){
             size_t next=oper.find('"',tot+1);
@@ -40,7 +29,7 @@ struct ACmd : Command {
     void execute(CommandOrigin const &origin, CommandOutput &outp) override
     {
         std::string oper=msg.getMessage(origin);
-        std::vector<string_view> args;
+        argVec args;
         mylex(oper,args);
         ((typeof(dummy))callee)(args,origin,outp);
     }
@@ -52,7 +41,7 @@ struct req {
     void* fn;
 };
 static std::deque<req> reqs;
-BDL_EXPORT void register_cmd(const std::string& name,void (*fn)(std::vector<string_view>&,CommandOrigin const &,CommandOutput &outp),const std::string& desc,int perm) {
+BDL_EXPORT void register_cmd(const std::string& name,void (*fn)(argVec&,CommandOrigin const &,CommandOutput &outp),const std::string& desc,int perm) {
     reqs.push_back({name,desc,perm,fp(fn)});
 }
 BDL_EXPORT void register_cmd(const std::string& name,void (*fn)(void),const std::string& desc,int perm) {

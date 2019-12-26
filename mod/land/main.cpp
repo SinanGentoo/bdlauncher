@@ -40,7 +40,7 @@ struct LPOS
     int x, z;
 };
 static std::unordered_map<STRING_HASH, LPOS> startpos, endpos;
-static unordered_map<STRING_HASH, int> choose_state;
+static unordered_map<Shash_t, int> choose_state;
 
 int LAND_PRICE, LAND_PRICE2;
 static bool land_tip = true;
@@ -63,7 +63,7 @@ static void loadcfg()
     if(getenv("NO_LTIP")) land_tip=false;
     free(buf);
 }
-static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOutput &outp)
+static void oncmd(argVec &a, CommandOrigin const &b, CommandOutput &outp)
 {
     auto nm = b.getName();
     auto sp = getSP(b.getEntity());
@@ -71,7 +71,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     SPBuf sb;
     ARGSZ(1)
     if(a[0]=="fix"){
-        db.Del("land_fixed");
+        db.Del("land_fixed_v3");
         outp.success("scheduled data fix at next server start");
         return;
     }
@@ -79,21 +79,21 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     {
         if (!sp)
             return;
-        choose_state.erase(do_hash(sp->getName()));
+        choose_state.erase(sp->getNameTagAsHash());
         outp.success("§bExit selection mode, please input /land buy");
     }
     if (a[0] == "a")
     {
         if (!sp)
             return;
-        choose_state[do_hash(sp->getName())] = 1;
+        choose_state[sp->getNameTagAsHash()] = 1;
         outp.success("§bEnter selection mode, please click on the ground to select point A");
     }
     if (a[0] == "b")
     {
         if (!sp)
             return;
-        choose_state[do_hash(sp->getName())] = 2;
+        choose_state[sp->getNameTagAsHash()] = 2;
         outp.success("§bPlease click on the ground to select point B");
     }
     if (a[0] == "query")
@@ -115,7 +115,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     }
     if (a[0] == "buy")
     {
-        auto hash = do_hash(sp->getName());
+        auto hash = sp->getNameTagAsHash();
         int x, z, dx, dz;
         int dim = sp->getDimensionId();
         if (startpos.count(hash) + endpos.count(hash) != 2)
@@ -129,11 +129,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
         dx = max(startpos[hash].x, endpos[hash].x);
         dz = max(startpos[hash].z, endpos[hash].z);
         //step -1 :sanitize pos
-        if (x < -200000 || z < -200000)
-        {
-            outp.error("Pos too small !> -200000 needed");
-            return;
-        }
+
         //step 1 check money
         int deltax = dx - x + 1, deltaz = dz - z + 1;
         uint siz = deltax * deltaz;
@@ -170,7 +166,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
             }
         //step 3 add land
         set_money(nm, mon - price);
-        addLand(to_lpos(x), to_lpos(dx), to_lpos(z), to_lpos(dz), dim, nm);
+        addLand((x)^0x80000000, (dx)^0x80000000, (z)^0x80000000, (dz)^0x80000000, dim, nm);
         outp.success("§bSuccessful land purchase");
     }
     if (a[0] == "sell")
@@ -294,7 +290,7 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
             return;
         iterLands_const([&](const DataLand &dl) {
             char buf[1000];
-            snprintf(buf, 1000, "owner %s pos %d %d -> %d %d dim %d perm %d", dl.owner.c_str(), dl.x, dl.z, dl.dx, dl.dz, dl.dim, dl.perm);
+            snprintf(buf, 1000, "owner %s pos %d %d -> %d %d dim %d perm %d", dl.owner.c_str(), dl.x^0x80000000, dl.z^0x80000000, dl.dx^0x80000000, dl.dz^0x80000000, dl.dim, dl.perm);
             outp.addMessage(buf);
         });
         outp.success("okay");
@@ -303,15 +299,12 @@ static void oncmd(std::vector<string_view> &a, CommandOrigin const &b, CommandOu
     {
         string name = b.getName();
         if (sp)
-            gui_ChoosePlayer(sp, "Choose players to trust", "Trust", [name](string_view dest) {
-                auto xx = getplayer_byname(name);
-                if (xx){
+            gui_ChoosePlayer(sp, "Choose players to trust", "Trust", [](ServerPlayer* xx,string_view dest) {
                     SPBuf sb;
                     sb.write("land trust \"");
                     sb.write(dest);
                     sb.write("\"");
                     runcmdAs(sb.get(), xx);
-                }
             });
         else
         {
@@ -343,7 +336,7 @@ static void CONVERT(char *b, int s)
             printf("refuse to add land %s\n", owner.c_str());
             continue;
         }
-        addLand(to_lpos(x), to_lpos(dx), to_lpos(y), to_lpos(dy), dim, owner);
+        addLand((x)^0x80000000, (dx)^0x80000000, (y)^0x80000000, (dy)^0x80000000, dim, owner);
     }
 }
 static void load()
@@ -431,7 +424,7 @@ static bool handle_inter(GameMode *a0, Actor &a1)
 static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5)
 {
     ServerPlayer *sp = a0->getPlayer();
-    auto hash = do_hash(sp->getName());
+    auto hash = sp->getNameTagAsHash();//do_hash(sp->getName());
     if (choose_state[hash] != 0)
     {
         if (choose_state[hash] == 1)
@@ -463,19 +456,16 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
         pm = PERM_BUILD;
     }
     FastLand *fl = getFastLand(x, z, dim), *fl2 = getFastLand(dstPos->x, dstPos->z, dim);
-    //printf("pos %d %d ,%d %d\n",x,z,dstPos->x,dstPos->z);
-    if (!fl && !fl2)
-        return 1;
-    auto name = sp->getName();
-    if ((!fl || fl->hasPerm(name, pm)) && (!fl2 || fl2->hasPerm(name, pm)))
-    {
-        return 1;
-    }
-    else
-    {
-        NoticePerm(fl?fl:fl2,sp);
+    auto& name = sp->getName();
+    if(fl && !fl->hasPerm(name,pm)){
+        NoticePerm(fl,sp);
         return 0;
     }
+    if(fl2 && !fl2->hasPerm(name,pm)){
+        NoticePerm(fl2,sp);
+        return 0;
+    }
+    return 1;
 }
 static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
 {
@@ -493,6 +483,7 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
         return 0;
     }
 }
+/*
 static unordered_map<STRING_HASH, string> lastland;
 THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned long const *tk)
 {
@@ -523,16 +514,16 @@ THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned lo
         }
     }
     return original(sp, tk);
-}
+}*/
 void mod_init(std::list<string> &modlist)
 {
     printf("[LAND] loaded! " BDL_TAG "\n");
     load();
     loadcfg();
     string dummy;
-    if(!db.Get("land_fixed_2",dummy)){
+    if(!db.Get("land_fixed_v3",dummy)){
         CHECK_AND_FIX_ALL();
-        db.Put("land_fixed_2",dummy);
+        db.Put("land_fixed_v3",dummy);
     }
     register_cmd("land", oncmd, "land command");
     register_cmd("reload_land", loadcfg, "reload land cfg", 1);

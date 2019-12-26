@@ -2,14 +2,14 @@
 #include<MC.h>
 #include"../base/base.h"
 #include"../cmdhelper.h"
-#include"../base/db.hpp"
+#include"../base/base.h"
 #include"../serial/seral.hpp"
 extern "C" {
    BDL_EXPORT void mod_init(std::list<string>& modlist);
 }
 extern void load_helper(std::list<string>& modlist);
 LDBImpl db("data_v2/vars");
-static void oncmd(std::vector<string_view>& a,CommandOrigin const & b,CommandOutput &outp) {
+static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if(a[0]=="ls"){
         if(a.size()==1) a.push_back(b.getName());
