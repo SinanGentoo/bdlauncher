@@ -4,7 +4,6 @@
 #include"rapidjson/document.h"
 #include"rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-#include"../serial/seral.hpp"
 #include<fstream>
 #include<cstdarg>
 
@@ -50,17 +49,14 @@ using namespace rapidjson;
 static void load(){
     cdks.clear();
     Document dc;
-    char* buf;
-    int sz;
-    file2mem("config/cdk.json",&buf,sz);
-    if(dc.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/cdk.json");
+    if(dc.ParseInsitu(fb.data).HasParseError()){
         printf("[CDK] Config JSON ERROR!\n");
         exit(1);
     }
     for(auto& i:dc.GetObject()){
         cdks.emplace(i.name.GetString(),i.value.GetString());
     }
-    free(buf);
 }
 static void save(){
     Document dc;

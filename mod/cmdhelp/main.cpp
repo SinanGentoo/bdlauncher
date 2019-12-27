@@ -7,7 +7,6 @@
 #include<fstream>
 #include<cstdarg>
 #include"../gui/gui.h"
-#include"../serial/seral.hpp"
 #include<queue>
 using namespace std;
 
@@ -121,10 +120,8 @@ static void load(){
     forms.clear();
     //gStrPool.clear();
     Document dc;
-    char* buf;
-    int sz;
-    file2mem("config/cmd.json",&buf,sz);
-    if(dc.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/cmd.json");
+    if(dc.ParseInsitu(fb.data).HasParseError()){
         printf("[CMDHelper] Config JSON ERROR!\n");
         exit(1);
     }
@@ -163,7 +160,6 @@ static void load(){
             timers.emplace_back(x["time"].GetInt(),x["shift"].GetInt(),CMD("",x["cmd"].GetString()));
         }
     }
-    free(buf);
 }
 static clock_t lastclk;
 static ServerPlayer* lastp;

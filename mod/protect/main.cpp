@@ -5,7 +5,7 @@
 #include "../base/base.h"
 #include<fstream>
 #include"seral.hpp"
-#include"../serial/seral.hpp"
+
 using namespace rapidjson;
 extern "C" {
     BDL_EXPORT void mod_init(std::list<string>& modlist);
@@ -14,17 +14,14 @@ extern void load_helper(std::list<string>& modlist);
 int NoEnderPick,NoExplodeBreak,NoFarm;
 void load(){
     Document dc;
-    char* buf;
-    int siz;
-    file2mem("config/protect.json",&buf,siz);
-    if(dc.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/protect.json");
+    if(dc.ParseInsitu(fb.data).HasParseError()){
         printf("[WorldProtect] Config JSON ERROR!\n");
         exit(1);
     }
     NoEnderPick=dc["NoEnderPick"].GetBool();
     NoExplodeBreak=dc["NoExplodeBreak"].GetBool();
     NoFarm=dc["NoFarm"].GetBool();
-    free(buf);
 }
 void* dummy(){
     return nullptr;

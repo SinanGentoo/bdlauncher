@@ -1,10 +1,10 @@
 #pragma once
+//!!!DEPRECATED
 #include<cstdlib>
 #include <string>
 #include<cstring>
 #include<cstdio>
 #include<iterator>
-#include<aio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

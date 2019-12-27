@@ -7,7 +7,6 @@
 #include<vector>
 #include<Loader.h>
 #include<MC.h>
-#include"../serial/seral.hpp"
 #include<unistd.h>
 #include<cstdarg>
 
@@ -47,11 +46,11 @@ static void relForm(SharedForm* sf){
         FormMem.release(sf);
     }
 }
+/*
 THook(void*,_ZN10TextPacket10createChatERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES7_S7_S7_,void* a1,string* s1,string* s2,string* s3,string* s4){
-    //printf("<%s> <%s> <%s> <%s>\n",s1->c_str(),s2->c_str(),s3->c_str());
     string fk="[ADMIN] c";
     return original(a1,&fk,s2,s3,s4);
-}
+}*/
 struct GUIPK{
     MyPkt* pk;
     string_view fm;

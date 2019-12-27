@@ -5,7 +5,6 @@
 #include "../base/base.h"
 #include "../money/money.h"
 #include<fstream>
-#include"../serial/seral.hpp"
 using namespace rapidjson;
 extern "C" {
     BDL_EXPORT void mod_init(std::list<string>& modlist);
@@ -15,10 +14,8 @@ unordered_map<int,std::pair<int,int> > bonus_mp;
 void load(){
     Document dc;
     std::ifstream ff;
-    char* buf;
-    int siz;
-    file2mem("config/killbonus.json",&buf,siz);
-    if(dc.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/killbonus.json");
+    if(dc.ParseInsitu(fb.data).HasParseError()){
         printf("[KillBonus] Config JSON ERROR!\n");
         exit(1);
     }
@@ -28,7 +25,6 @@ void load(){
         auto eid=i["eid"].GetInt();
         bonus_mp[eid]={bMin,bMax};
     }
-    free(buf);
 }
 static int dbg_die;
 static void toggle_dbg(){

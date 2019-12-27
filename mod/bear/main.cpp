@@ -17,7 +17,6 @@
 #include<cstdarg>
 #include"../base/base.h"
 #include"../gui/gui.h"
-#include"../serial/seral.hpp"
 
 #include<cmath>
 #include<deque>
@@ -156,7 +155,7 @@ static bool handle_u(GameMode* a0,ItemStack * a1,BlockPos const* a2,BlockPos con
     }*/
     //printf("dbg use %s\n",a0->getPlayer()->getCarriedItem().toString().c_str());
     if(a0->getPlayer()->getPlayerPermissionLevel()>1) return 1;
-    string sn=a0->getPlayer()->getName();
+    auto& sn=a0->getPlayer()->getName();
     if(banitems.has(a1->getId())){
         async_log("[ITEM] %s tries to use prohibited items(banned) %s pos: %d %d %d\n",sn.c_str(),a1->toString().c_str(),a2->x,a2->y,a2->z);
         sendText(a0->getPlayer(),"§cUnable to use prohibited items",JUKEBOX_POPUP);
@@ -352,7 +351,7 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
                 return 6;
             }
         }
-        if(banitems.count(j.getFromItem()->getId()) || banitems.count(j.getToItem()->getId())){
+        if(banitems.has(j.getFromItem()->getId()) || banitems.has(j.getToItem()->getId())){
             async_log("[ITEM] %s tries to use dangerous items(banned) %s %s\n",name.c_str(),j.getFromItem()->toString().c_str(),j.getToItem()->toString().c_str());
             sendText(&player,BANNED_ITEM,POPUP);
             return 6;
@@ -384,10 +383,8 @@ using namespace rapidjson;
 static void _load_config(){
     banitems.clear();warnitems.clear();
     Document d;
-    char* buf;
-    int siz;
-    file2mem("config/bear.json",&buf,siz);
-    if(d.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/bear.json");
+    if(d.ParseInsitu(fb.data).HasParseError()){
         printf("[ANTIBEAR] JSON ERROR!\n");
         exit(1);
     }
@@ -406,7 +403,6 @@ static void _load_config(){
         if(!warnitems.full())
         warnitems.push_back((short)i.GetInt());
     }
-    free(buf);
 }
 static void load_config(argVec& a,CommandOrigin const & b,CommandOutput &outp){
     _load_config();

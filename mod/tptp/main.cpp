@@ -8,7 +8,6 @@
 #include<Loader.h>
 #include<MC.h>
 #include"seral.hpp"
-#include"../serial/seral.hpp"
 #include <sys/stat.h>
 #include<unistd.h>
 #include <sys/stat.h>
@@ -71,7 +70,9 @@ static LDBImpl tp_db("data_v2/tp");
 void CONVERT_WARP(){
     char* buf;
     int siz;
-    file2mem("data/tp/wps.db",&buf,siz);
+    FileBuffer fb("data/tp/wps.db");
+    buf=fb.data;
+    siz=fb.size;
     DataStream ds;
     ds.dat=string(buf,siz);
     int cnt;
@@ -91,12 +92,13 @@ void CONVERT_WARP(){
     DataStream tmpds;
     tmpds<<warps;
     tp_db.Put("warps",tmpds.dat);
-    free(buf);
 }
 void CONVERT_HOME(){
     char* buf;
     int siz;
-    file2mem("data/tp/tp.db",&buf,siz);
+    FileBuffer fb("data/tp/tp.db");
+    buf=fb.data;
+    siz=fb.size;
     int cnt;
     DataStream ds;
     ds.dat=string(buf,siz);
@@ -120,7 +122,6 @@ void CONVERT_HOME(){
         tmpds<<hom;
         tp_db.Put("home_"+key,tmpds.dat);
     }
-    free(buf);
 }
 void add_warp(int x,int y,int z,int dim,const string& name){
     warp_list.push_back(name);
@@ -507,10 +508,8 @@ static void handle_mobdie(Mob& mb,const ActorDamageSource&){
 using namespace rapidjson;
 static void load_cfg(){
     Document d;
-    char* buf;
-    int sz;
-    file2mem("config/tp.json",&buf,sz);
-    if(d.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/tp.json");
+    if(d.ParseInsitu(fb.data).HasParseError()){
         printf("[TP] JSON ERROR!\n");
         exit(1);
     }
@@ -518,7 +517,6 @@ static void load_cfg(){
     CanHome=d["can_home"].GetBool();
     CanTP=d["can_tp"].GetBool();
     MaxHomes=d["max_homes"].GetInt();
-    free(buf);
 }
 
 void mod_init(std::list<string>& modlist) {

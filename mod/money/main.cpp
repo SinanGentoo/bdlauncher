@@ -17,7 +17,6 @@
 #include"rapidjson/document.h"
 #include<fstream>
 #include"../gui/gui.h"
-#include"../serial/seral.hpp"
 #include"lang.h"
 using std::string;
 using std::to_string;
@@ -44,27 +43,23 @@ static void load() {
     int sz;
     struct stat tmp;
     if(stat("data/money/money.db",&tmp)!=-1) {
-        file2mem("data/money/money.db",&buf,sz);
-        DO_DATA_CONVERT(buf,sz);
+        FileBuffer fb("data/money/money.db");
+        DO_DATA_CONVERT(fb.data,fb.size);
         printf("[MONEY] DATA CONVERT DONE;old:data/money/money.db.old\n");
         link("data/money/money.db","data/money/money.db.old");
         unlink("data/money/money.db");
-        free(buf);
     }
 }
 int INIT_MONEY;
 using namespace rapidjson;
 void loadcfg(){
     Document dc;
-    char* buf;
-    int siz;
-    file2mem("config/money.json",&buf,siz);
-    if(dc.ParseInsitu(buf).HasParseError()){
+    FileBuffer fb("config/money.json");
+    if(dc.ParseInsitu(fb.data).HasParseError()){
         printf("[MONEY] Config JSON ERROR!\n");
         exit(1);
     }
     INIT_MONEY=dc["init_money"].GetInt();
-    free(buf);
 }
 int get_money(string_view pn) {
     //lazy init

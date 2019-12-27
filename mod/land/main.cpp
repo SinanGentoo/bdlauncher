@@ -8,7 +8,6 @@
 #include <Loader.h>
 #include <MC.h>
 #include "seral.hpp"
-#include "../serial/seral.hpp"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -48,10 +47,8 @@ using namespace rapidjson;
 static void loadcfg()
 {
     Document dc;
-    char *buf;
-    int siz;
-    file2mem("config/land.json", &buf, siz);
-    if (dc.ParseInsitu(buf).HasParseError())
+FileBuffer fb("config/land.json");
+    if (dc.ParseInsitu(fb.data).HasParseError())
     {
         printf("[LAND] Config JSON ERROR!\n");
         exit(1);
@@ -61,7 +58,6 @@ static void loadcfg()
     if (dc.HasMember("land_tip"))
         land_tip = dc["land_tip"].GetBool();
     if(getenv("NO_LTIP")) land_tip=false;
-    free(buf);
 }
 static void oncmd(argVec &a, CommandOrigin const &b, CommandOutput &outp)
 {
@@ -343,15 +339,15 @@ static void load()
 {
     char *buf;
     int sz;
+    
     struct stat tmp;
     if (stat("data/land/land.db", &tmp) != -1)
     {
-        file2mem("data/land/land.db", &buf, sz);
+        FileBuffer fb("data/land/land.db");
         printf("CONVERTING LANDS\n");
-        CONVERT(buf, sz);
+        CONVERT(fb.data, fb.size);
         link("data/land/land.db", "data/land/land.db.old");
         unlink("data/land/land.db");
-        free(buf);
     }
 }
 

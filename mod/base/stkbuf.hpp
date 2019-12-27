@@ -6,7 +6,7 @@ using std::string;
 template<const int sz=1024>
 struct SPBuf{
     char buf[sz];
-    int ptr;
+    size_t ptr;
     SPBuf():ptr(0){}
     inline std::string getstr(){
         return std::string(buf,ptr);
