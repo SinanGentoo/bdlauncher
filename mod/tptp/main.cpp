@@ -45,7 +45,7 @@ struct Vpos {
         ds>>x>>y>>z>>dim>>name;
     }
     void tele(Actor& ply) const {
-        TeleportA(ply, {x,y,z}, {dim});
+        TeleportA(ply, {(float)x,(float)y,(float)z}, {dim});
     }
 };
 struct home {

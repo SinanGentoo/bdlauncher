@@ -38,8 +38,8 @@ struct LPOS
 {
     int x, z;
 };
-static std::unordered_map<STRING_HASH, LPOS> startpos, endpos;
-static unordered_map<Shash_t, int> choose_state;
+static std::unordered_map<string, LPOS> startpos, endpos;
+static unordered_map<string, int> choose_state;
 
 int LAND_PRICE, LAND_PRICE2;
 static bool land_tip = true;
@@ -75,21 +75,21 @@ static void oncmd(argVec &a, CommandOrigin const &b, CommandOutput &outp)
     {
         if (!sp)
             return;
-        choose_state.erase(sp->getNameTagAsHash());
+        choose_state.erase(sp->getNameTag());
         outp.success("§bExit selection mode, please input /land buy");
     }
     if (a[0] == "a")
     {
         if (!sp)
             return;
-        choose_state[sp->getNameTagAsHash()] = 1;
+        choose_state[sp->getNameTag()] = 1;
         outp.success("§bEnter selection mode, please click on the ground to select point A");
     }
     if (a[0] == "b")
     {
         if (!sp)
             return;
-        choose_state[sp->getNameTagAsHash()] = 2;
+        choose_state[sp->getNameTag()] = 2;
         outp.success("§bPlease click on the ground to select point B");
     }
     if (a[0] == "query")
@@ -111,7 +111,7 @@ static void oncmd(argVec &a, CommandOrigin const &b, CommandOutput &outp)
     }
     if (a[0] == "buy")
     {
-        auto hash = sp->getNameTagAsHash();
+        auto& hash = sp->getNameTag();
         int x, z, dx, dz;
         int dim = sp->getDimensionId();
         if (startpos.count(hash) + endpos.count(hash) != 2)
@@ -420,7 +420,7 @@ static bool handle_inter(GameMode *a0, Actor &a1)
 static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5)
 {
     ServerPlayer *sp = a0->getPlayer();
-    auto hash = sp->getNameTagAsHash();//do_hash(sp->getName());
+    auto& hash = sp->getNameTag();
     if (choose_state[hash] != 0)
     {
         if (choose_state[hash] == 1)
@@ -433,7 +433,6 @@ static bool handle_useion(GameMode *a0, ItemStack *a1, BlockPos const *a2, Block
             endpos[hash] = {a2->x, a2->z};
             char buf[1000];
             auto siz = (abs(startpos[hash].x - endpos[hash].x) + 1) * (abs(startpos[hash].z - endpos[hash].z) + 1);
-            //sprintf(buf,"§bPoint B selected,size: %d price: %d",siz,siz*LAND_PRICE);
             snprintf(buf, 1000, "§bPoint B selected,size: %d price: %d", siz, siz * LAND_PRICE);
             sendText(sp, buf);
         }

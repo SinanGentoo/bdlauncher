@@ -15,6 +15,7 @@
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include<string_view>
 
 #define BDL_EXPORT __attribute__((visibility("default")))
 
@@ -24,11 +25,25 @@ using std::string;
 using std::unique_ptr;
 using std::unordered_map;
 using std::unordered_set;
+using std::string_view;
 #define access(ptr, type, off) (*((type *)(((uintptr_t)ptr) + off)))
 #define fcast(type, x) (*((type *)&x))
 #ifndef fp
 #define fp(x) ((void *)(x))
 #endif
+
+typedef unsigned long STRING_HASH;
+
+STRING_HASH do_hash(string_view x){
+    auto sz=x.size();
+    auto c=x.data();
+    unsigned int hash1=0;unsigned int hash2=0;
+    for(int i=0;i<sz;++i){
+        hash1=(hash1*47+c[i])%1000000007;
+        hash2=(hash2*83+c[i])%1000000009;
+    }
+    return (((STRING_HASH)hash1)<<32)|hash2;
+}
 
 extern "C"
 {
@@ -419,7 +434,9 @@ class Actor : public TickingArea
 {
 public:
     const std::string &getNameTag() const;
-    Shash_t getNameTagAsHash() const;
+    Shash_t getNameTagAsHash(){
+        return do_hash(getNameTag());
+    } //fix it
     Vec3 const &getPos() const;
     bool isRiding() const;
     std::vector<MobEffect> &getAllEffects() const;

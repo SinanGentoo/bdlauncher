@@ -46,11 +46,6 @@ static void relForm(SharedForm* sf){
         FormMem.release(sf);
     }
 }
-/*
-THook(void*,_ZN10TextPacket10createChatERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES7_S7_S7_,void* a1,string* s1,string* s2,string* s3,string* s4){
-    string fk="[ADMIN] c";
-    return original(a1,&fk,s2,s3,s4);
-}*/
 struct GUIPK{
     MyPkt* pk;
     string_view fm;
@@ -113,4 +108,5 @@ void gui_ChoosePlayer(ServerPlayer* sp,string_view text,string_view title,std::f
 void mod_init(std::list<string>& modlist) {
     printf("[GUI] Loaded " BDL_TAG "\n");
     load_helper(modlist);
+    //PlayerListPacket::add(PlayerListEntry const&)
 }

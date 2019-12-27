@@ -1,5 +1,4 @@
 #pragma once
-#include"stkbuf.hpp"
 #include "../cmdhelper.h"
 #include <string>
 #include <unordered_map>
@@ -8,6 +7,7 @@
 #include <vector>
 //#include "db.hpp"
 #include "stl.hpp"
+#include"stkbuf.hpp"
 #include<string_view>
 using namespace std::literals;
 using std::string_view;
@@ -80,16 +80,18 @@ return; \
 }
 
 #define SafeStr(a) ("\"" + (a) + "\"")
+
 static Minecraft *McCache;
 static Level *LvCache;
 static inline Minecraft *getMC()
 {
-    return McCache ? McCache : (McCache = _getMC());
+    return likely(McCache) ? McCache : (McCache = _getMC());
 }
 static inline Level *getSrvLevel()
 {
-    return LvCache ? LvCache : (LvCache = _getMC()->getLevel());
+    return likely(LvCache) ? LvCache : (LvCache = getMC()->getLevel());
 }
+
 static inline bool isOp(ServerPlayer const *sp)
 {
     return (int)sp->getPlayerPermissionLevel() > 1;

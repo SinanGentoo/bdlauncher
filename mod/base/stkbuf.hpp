@@ -18,14 +18,14 @@ struct SPBuf{
         ptr=0;
     }
     inline void write(string_view sv){
-        if(sv.size()>sz-ptr) return;
+        if(unlikely(sv.size()>sz-ptr)) return;
         memcpy(buf+ptr,sv.data(),sv.size());
         ptr+=sv.size();
     }
     inline void write(const string& s){write(string_view(s));}
     inline void write(const char* cs){
         auto csz=strlen(cs);
-        if(csz>sz-ptr) return;
+        if(unlikely(csz>sz-ptr)) return;
         memcpy(buf+ptr,cs,csz);
         ptr+=csz;
     }

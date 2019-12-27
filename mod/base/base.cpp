@@ -20,7 +20,9 @@ using std::vector;
 extern "C" {
    BDL_EXPORT void mod_init(list<string>& modlist);
 }
-
+static Minecraft* MC;
+static Level* ServLevel;
+static MinecraftCommands* MCCMD;
 //export APIS
 void split_string(string_view s, std::vector<std::string_view>& v, string_view c)
 {
@@ -146,7 +148,7 @@ void sendText(Player* a,string_view ct,TextType type) {
 }
 void broadcastText(Player* a,string_view ct,TextType type){
     gTextPkt.setText(ct,type);
-    auto& vc=*getSrvLevel()->getUsers();
+    auto& vc=*ServLevel->getUsers();
     for(auto& i:vc){
         gTextPkt.send(i.get());
     }
@@ -170,7 +172,7 @@ void KillActor(Actor* a) {
 #define fcast(a,b) (*((a*)(&b)))
 ServerPlayer* getplayer_byname2(string_view name) {
     ServerPlayer* rt=NULL;
-    auto vc=getSrvLevel()->getUsers();
+    auto vc=ServLevel->getUsers();
     for(auto& tg:*vc){
         string bf=tg->getName();
         #define min(a,b) ((a)<(b)?(a):(b))
@@ -192,12 +194,12 @@ ServerPlayer* getplayer_byname2(string_view name) {
 }
 
 void get_player_names(vector<string>& a){
-    auto vc=getSrvLevel()->getUsers();
+    auto vc=ServLevel->getUsers();
     for(auto& i:*vc){
         a.emplace_back(i->getName());
     }
 }
-static Minecraft* MC;
+
 BDL_EXPORT Minecraft* _getMC() {
     return MC;
 }
@@ -205,6 +207,8 @@ THook(void*,_ZN14ServerCommands19setupStandardServerER9MinecraftRKNSt7__cxx1112b
     auto ret=original(a,d,b,c);
     printf("MC %p\n",&a);
     MC=&a;
+    ServLevel=MC->getLevel();
+    MCCMD=MC->getCommands();
     return ret;
 }
 THook(void*,_ZN10SayCommand5setupER15CommandRegistry,CommandRegistry& thi,CommandRegistry& a){
@@ -235,17 +239,17 @@ static void autostop(){
         }
 }
 int getPlayerCount(){
-    return getSrvLevel()->getUserCount();
+    return ServLevel->getUserCount();
 }
 int getMobCount(){
-    return getSrvLevel()->getTickedMobCountPrevious();
+    return ServLevel->getTickedMobCountPrevious();
 }
 
 NetworkIdentifier* getPlayerIden(ServerPlayer& sp){
     return access(&sp,NetworkIdentifier*,2952);
 }
 ServerPlayer* getuser_byname(string_view a){
-    auto vc=getSrvLevel()->getUsers();
+    auto vc=ServLevel->getUsers();
     for(auto& i:*vc){
         if(i->getName()==a) return i.get();
     }
@@ -273,7 +277,7 @@ BDL_EXPORT MCRESULT runcmd(string_view a) {
         access(SCO,void*,0)=fake_vtbl+2;
     }
     //memcpy(fakeOrigin,SCO,sizeof(fakeOrigin));
-    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MC->getCommands(),ori_ptr,string(a),4,1);
+    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MCCMD,ori_ptr,string(a),4,1);
 }
 struct PlayerCommandOrigin{
     char filler[72];
@@ -281,7 +285,7 @@ struct PlayerCommandOrigin{
 };
 BDL_EXPORT MCRESULT runcmdAs(string_view a,Player* sp) {
     auto ori=(CommandOrigin*)new PlayerCommandOrigin(*sp);
-    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MC->getCommands(),&ori,string(a),4,1);       
+    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MCCMD,&ori,string(a),4,1);       
 }
 static void dummy__(){}
 void mod_init(list<string>& modlist)

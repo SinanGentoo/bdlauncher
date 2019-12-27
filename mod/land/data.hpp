@@ -9,8 +9,6 @@ using std::list;
 using std::unordered_map;
 #define max(a,b) (((a)>(b))?(a):(b))
 #define min(a,b) (((a)<(b))?(a):(b))
-#define unlikely(cond) __glibc_unlikely(!!(cond))
-#define likely(cond) __glibc_likely(!!(cond))
 static LDBImpl db("data_v2/land");
 enum LandPerm:char{
     PERM_NULL=0,
