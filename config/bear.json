@@ -1,10 +1,4 @@
-{
-    "FChatLimit": true,
-    "FPushChest": true,
-    "FDestroyCheck": true,
-    "FSpwanExp": true,
-    "LogChest":true ,
-    "banitems": [383],
-    "warnitems": []
+{"FChatLimit": true,"FPushChest": true, "FDestroyCheck": true, "FSpwanExp": true, "LogChest":true , "banitems": [383], "warnitems": []
+,"MAX_CHAT_LEN":6,"banwords":["nmsl","kksk","你"]
 }
 
