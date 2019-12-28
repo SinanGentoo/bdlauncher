@@ -8,6 +8,8 @@
 #include<signal.h>
 #include <sys/stat.h>
 #include<unistd.h>
+#include<tuple>
+using std::tuple;
 using std::list;
 using std::vector;
 #include"base.h"
@@ -19,10 +21,25 @@ using std::vector;
 #include"dbimpl.hpp"
 extern "C" {
    BDL_EXPORT void mod_init(list<string>& modlist);
+   BDL_EXPORT Minecraft* MC;
+   BDL_EXPORT Level* ServLevel;
 }
-static Minecraft* MC;
-static Level* ServLevel;
+//static Minecraft* MC;
+//static Level* ServLevel;
 static MinecraftCommands* MCCMD;
+static unordered_map<ServerPlayer*,pair<char[0x98],unsigned char> > sp_net;
+THook(void*,_ZN12ServerPlayerC1ER5LevelR12PacketSenderR14NetworkHandlerRN15ClientBlobCache6Server22ActiveTransfersManagerE8GameTypeRK17NetworkIdentifierhSt8functionIFvRS_EEN3mce4UUIDERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt10unique_ptrI11CertificateSt14default_deleteIST_EEi,\
+ServerPlayer* a1,Level* a2,void* a3,void* a4,void* a5,void* a6,NetworkIdentifier* a7,\
+unsigned char a8,void* a9,void* a10,void* a10_1,string* a11,void* a12,void* a13){
+    auto ret=original(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a10_1,a11,a12,a13);
+    memcpy(sp_net[a1].first,a7,0x98);
+    sp_net[a1].second=a8;
+    return ret;
+}
+THook(void*,_ZN12ServerPlayerD0Ev,ServerPlayer* sp){
+    sp_net.erase(sp);
+    return original(sp);
+}
 //export APIS
 void split_string(string_view s, std::vector<std::string_view>& v, string_view c)
 {
@@ -130,7 +147,7 @@ struct MyTxtPk{
             bs.writeBool(false);
             bs.writeUnsignedVarInt(this->str.size());
             bs.write(this->str.data(),this->str.size());
-            bs.writeUnsignedInt64(0);
+            //bs.writeUnsignedInt64(0);
             /*
             bs.writeUnsignedVarInt(0);
             bs.writeUnsignedVarInt(0);//padding
@@ -146,7 +163,7 @@ void sendText(Player* a,string_view ct,TextType type) {
     gTextPkt.setText(ct,type);
     gTextPkt.send(a);
 }
-void broadcastText(Player* a,string_view ct,TextType type){
+void broadcastText(string_view ct,TextType type){
     gTextPkt.setText(ct,type);
     auto& vc=*ServLevel->getUsers();
     for(auto& i:vc){
@@ -200,9 +217,6 @@ void get_player_names(vector<string>& a){
     }
 }
 
-BDL_EXPORT Minecraft* _getMC() {
-    return MC;
-}
 THook(void*,_ZN14ServerCommands19setupStandardServerER9MinecraftRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES9_P15PermissionsFile,Minecraft& a, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const& d, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const& b, PermissionsFile* c){
     auto ret=original(a,d,b,c);
     printf("MC %p\n",&a);
@@ -261,8 +275,10 @@ void forceKickPlayer(ServerPlayer& sp){
 extern "C"{
 	void _ZTV19ServerCommandOrigin();
 	void _ZN19ServerCommandOriginD2Ev();
+    void _ZTV19PlayerCommandOrigin();
 };
 void* fake_vtbl[(0x000000000ABE2610-0x000000000ABE2528)/8];
+void* fake_vtbl_ply[(0x000000000ABE2610-0x000000000ABE2528)/8];
 static ServerCommandOrigin* SCO;
 static string sname("Server");
 extern "C"{
@@ -279,13 +295,14 @@ BDL_EXPORT MCRESULT runcmd(string_view a) {
     //memcpy(fakeOrigin,SCO,sizeof(fakeOrigin));
     return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MCCMD,ori_ptr,string(a),4,1);
 }
-struct PlayerCommandOrigin{
-    char filler[72];
-    PlayerCommandOrigin(Player&);
-};
 BDL_EXPORT MCRESULT runcmdAs(string_view a,Player* sp) {
-    auto ori=(CommandOrigin*)new PlayerCommandOrigin(*sp);
-    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MCCMD,&ori,string(a),4,1);       
+    //auto ori=(CommandOrigin*)new PlayerCommandOrigin(*sp);
+    char origin[40];
+    CommandOrigin* ori_ptr=(CommandOrigin*)&origin;
+    access(ori_ptr,void*,0)=fake_vtbl_ply+2;
+    access(ori_ptr,ActorUniqueID,24)=sp->getUniqueID();
+    access(ori_ptr,Level*,32)=ServLevel;
+    return _ZNK17MinecraftCommands23requestCommandExecutionESt10unique_ptrI13CommandOriginSt14default_deleteIS1_EERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEib(MCCMD,&ori_ptr,string(a),4,1);       
 }
 static void dummy__(){}
 void mod_init(list<string>& modlist)
@@ -293,7 +310,9 @@ void mod_init(list<string>& modlist)
     uintptr_t* pt=(uintptr_t*)_ZTV19ServerCommandOrigin;
     memcpy(fake_vtbl,(void*)_ZTV19ServerCommandOrigin,sizeof(fake_vtbl));
     printf("[BASE] fake vtable pt %p %p %p %p\n",pt[0],pt[1],pt[2],_ZN19ServerCommandOriginD2Ev); //pt[3]=D0ev
-    fake_vtbl[3]=(void*)dummy__; //fix free(ServerCommandOrigin)
+    fake_vtbl[2]=fake_vtbl[3]=(void*)dummy__; //fix free(ServerCommandOrigin)
+    memcpy(fake_vtbl_ply,(void*)(void*)_ZTV19PlayerCommandOrigin,sizeof(fake_vtbl_ply));
+    fake_vtbl_ply[2]=fake_vtbl_ply[3]=(void*)dummy__;
     mkdir("data_v2",S_IRWXU);
     printf("[MOD/BASE] loaded! " BDL_TAG "\n");   	
     set_int_handler(fp(autostop));		

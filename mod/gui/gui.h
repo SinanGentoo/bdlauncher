@@ -23,7 +23,7 @@ struct SharedForm{
         if(isInput){
             buf.write(input_json);
             buf.write(title);
-            buf.write("\",\"content\":\"[");
+            buf.write("\",\"content\":[");
         }else{
             buf.write(button_json);
             buf.write(title);

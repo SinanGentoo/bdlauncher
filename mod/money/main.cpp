@@ -209,8 +209,12 @@ static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
         });
     }
 }
-
+#include<iostream>
 void mod_init(std::list<string>& modlist) {
+/*SharedForm* sf=getForm("Pay","",true);
+ sf->addInput("kksk");
+std::cout<<sf->serial()<<std::endl;
+exit(0);*/
     printf("[MONEY] loaded! " BDL_TAG "\n");
     load();
     loadcfg();

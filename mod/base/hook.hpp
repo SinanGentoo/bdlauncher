@@ -1,4 +1,4 @@
-static_deque<bool(*)(ServerPlayer const* a0,string& payload)> chat_hook;
+static_deque<bool(*)(ServerPlayer* a0,string& payload)> chat_hook;
 THook(void*,_ZN20ServerNetworkHandler19_displayGameMessageERK6PlayerRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE,void* a,ServerPlayer* sp,string& x){
     int fg=1;
     if(!sp){

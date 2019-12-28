@@ -56,7 +56,8 @@ bool isBanned(const string& name) {
         return 0;
     }
 }
-
+int MAX_CHAT_SIZE;
+static_deque<string,128> banword;
 static int logfd;
 static int logsz;
 static void initlog() {
@@ -108,10 +109,41 @@ THook(void*,_ZN20ServerNetworkHandler22_onClientAuthenticatedERK17NetworkIdentif
     }
     return original(t,a,b);
 }
-
-static bool hkc(ServerPlayer const * b,string& c) {
+unordered_map<string,time_t> mute_time;
+static bool hkc(ServerPlayer * b,string& c) {
+    if(c.size()>MAX_CHAT_SIZE) 
+    {
+        sendText(b,"too long chat");
+        return 0;
+    }
+    for(auto& i:banword){
+        if(c.find(i)!=string::npos) {
+            SPBuf<512> sb;
+            sb.write("Banned word: ");
+            sb.write(i);
+            sendText(b,sb.get());
+            return 0;
+        }
+    }
+    auto it=mute_time.find(b->getName());
+    if(it!=mute_time.end()){
+        if(it->second!=0 && time(0)>it->second){
+            mute_time.erase(it);
+        }else{
+            sendText(b,"You're muted!");
+            return 0;
+        }
+    }
     async_log("[CHAT]%s: %s\n",b->getName().c_str(),c.c_str());
     return 1;
+}
+static void oncmd_mute(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
+    ARGSZ(2)
+    int to=atoi(a[1]);
+    if(to==-1)
+        mute_time[string(a[0])]=0; //always
+    else
+        mute_time[string(a[0])]=time(0)+to;
 }
 static void oncmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
@@ -381,7 +413,7 @@ THook(unsigned long,_ZNK20InventoryTransaction11executeFullER6Playerb,void* _thi
 using namespace rapidjson;
 
 static void _load_config(){
-    banitems.clear();warnitems.clear();
+    banitems.clear();warnitems.clear();banword.clear();
     Document d;
     FileBuffer fb("config/bear.json");
     if(d.ParseInsitu(fb.data).HasParseError()){
@@ -403,6 +435,12 @@ static void _load_config(){
         if(!warnitems.full())
         warnitems.push_back((short)i.GetInt());
     }
+    auto&& z=d["banwords"].GetArray();
+    for(auto& i:z){
+        if(!banword.full())
+        banword.push_back(i.GetString());
+    }
+    MAX_CHAT_SIZE=d.HasMember("MAX_CHAT_LEN")?d["MAX_CHAT_LEN"].GetInt():1000;
 }
 static void load_config(argVec& a,CommandOrigin const & b,CommandOutput &outp){
     _load_config();
@@ -456,8 +494,8 @@ static void kick_cmd(argVec& a,CommandOrigin const & b,CommandOutput &outp) {
     ARGSZ(1)
     if((int)b.getPermissionsLevel()>0) {
         if(a.size()==1) a.push_back("Kicked");
-        runcmd("kick \""+string(a[0])+"\" "+string(a[1]));
-        auto x=getuser_byname(string(a[0]));
+        //runcmd("kick \""+string(a[0])+"\" "+string(a[1]));
+        auto x=getuser_byname(a[0]);
         if(x){
             forceKickPlayer(*x);
             outp.success("§bKicked player");
@@ -543,6 +581,7 @@ void mod_init(std::list<string>& modlist) {
     register_cmd("skick",kick_cmd,"force kick",1);
     register_cmd("bangui",bangui_cmd,"gui for ban",1);
     register_cmd("invcheck",oncmd_invcheck,"inspect player's inventory",1);
+    register_cmd("mute",oncmd_mute,"mute player",1);
     mkdir("invdump",S_IRWXU);
     reg_player_join(onJoin);
     reg_useitemon(handle_u);

@@ -39,6 +39,7 @@ using std::unordered_map;
 unordered_map<int,SharedForm*> id_forms;
 AllocPool<SharedForm> FormMem;
 SharedForm* getForm(string_view title,string_view cont,bool isInp){
+//	return new SharedForm(title,cont,true,isInp);
     return FormMem.get(title,cont,true,isInp); //need free
 }
 static void relForm(SharedForm* sf){

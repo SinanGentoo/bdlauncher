@@ -32,7 +32,7 @@ enum TextType : char
 typedef static_deque<string_view,64> argVec;
 
 BDL_EXPORT void sendText(Player *a, string_view ct, TextType type = RAW);
-BDL_EXPORT void broadcastText(Player* a,string_view ct,TextType type = RAW);
+BDL_EXPORT void broadcastText(string_view ct,TextType type = RAW);
 #define sendText2(a, b) sendText(a, b, JUKEBOX_POPUP)
 BDL_EXPORT void TeleportA(Actor &a, Vec3 b, AutomaticID<Dimension, int> c);
 //BDL_EXPORT Player* getplayer_byname(const string& name);
@@ -41,7 +41,6 @@ BDL_EXPORT void get_player_names(vector<string> &a);
 BDL_EXPORT void KillActor(Actor *a);
 BDL_EXPORT MCRESULT runcmd(string_view a);
 BDL_EXPORT MCRESULT runcmdAs(string_view a, Player *sp);
-BDL_EXPORT Minecraft *_getMC();
 
 BDL_EXPORT void split_string(string_view s, std::vector<std::string_view> &v, string_view c);
 BDL_EXPORT void split_string(string_view s, static_deque<std::string_view> &v, string_view c);
@@ -51,7 +50,7 @@ BDL_EXPORT void register_cmd(const std::string &name,void (*fn)(void), const std
 BDL_EXPORT void reg_useitemon(bool(*)(GameMode *a0, ItemStack *a1, BlockPos const *a2, BlockPos const *dstPos, Block const *a5));
 BDL_EXPORT void reg_destroy(bool(*)(GameMode *a0, BlockPos const *));
 BDL_EXPORT void reg_attack(bool(*)(ServerPlayer *a0, Actor *a1));
-BDL_EXPORT void reg_chat(bool(*)(ServerPlayer const *a0, string &payload));
+BDL_EXPORT void reg_chat(bool(*)(ServerPlayer *a0, string &payload));
 BDL_EXPORT void reg_player_join(void(*)(ServerPlayer *));
 BDL_EXPORT void reg_player_left(void(*)(ServerPlayer *));
 BDL_EXPORT void reg_pickup(bool(*)(Actor *a0, ItemActor *a1));
@@ -81,9 +80,17 @@ return; \
 
 #define SafeStr(a) ("\"" + (a) + "\"")
 
-static Minecraft *McCache;
+//static Minecraft *McCache;
 static Level *LvCache;
-static inline Minecraft *getMC()
+#ifndef BASE
+extern "C"{
+    void MC(); //dummy
+    void ServLevel();
+}
+#endif
+#define getMC() ((Minecraft*)MC)
+#define getSrvLevel() ((Level*)ServLevel)
+/*static inline Minecraft *getMC()
 {
     return likely(McCache) ? McCache : (McCache = _getMC());
 }
@@ -91,7 +98,7 @@ static inline Level *getSrvLevel()
 {
     return likely(LvCache) ? LvCache : (LvCache = getMC()->getLevel());
 }
-
+*/
 static inline bool isOp(ServerPlayer const *sp)
 {
     return (int)sp->getPlayerPermissionLevel() > 1;
@@ -123,4 +130,4 @@ struct LDBImpl
 };
 
 using std::pair;
-#define BDL_TAG "V2019-12-27"
+#define BDL_TAG "V2019-12-28"

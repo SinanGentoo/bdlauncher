@@ -23,6 +23,7 @@ struct SPBuf{
         ptr+=sv.size();
     }
     inline void write(const string& s){write(string_view(s));}
+    inline void write(string& s){write(string_view(s));}
     inline void write(const char* cs){
         auto csz=strlen(cs);
         if(unlikely(csz>sz-ptr)) return;

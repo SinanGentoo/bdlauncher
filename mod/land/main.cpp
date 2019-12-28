@@ -478,19 +478,18 @@ static bool handle_popitem(ServerPlayer &sp, BlockPos &bpos)
         return 0;
     }
 }
-/*
-static unordered_map<STRING_HASH, string> lastland;
+
+static unordered_map<string, string> lastland;
 THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned long const *tk)
 {
     if (!land_tip)
         return original(sp, tk);
     if (*tk%16==0)
     {
-        auto hash = do_hash(sp->getName());
-        auto &oldname = lastland[hash];
+        auto &oldname = lastland[sp->getName()];
         auto &pos = sp->getPos();
         int dim = sp->getDimensionId();
-        FastLand *fl = getFastLand(pos.x, pos.z, dim);
+        FastLand *fl = getFastLand(round(pos.x), round(pos.z), dim);
         string_view newname;
         if (fl)
         {
@@ -504,12 +503,12 @@ THook(void *, _ZN12ServerPlayer9tickWorldERK4Tick, ServerPlayer *sp, unsigned lo
             }else{
                 sb.write("You entered "sv);sb.write(newname);sb.write("'s land!"sv);
             }
-            sendText(sp, sb.get(), TextType::TIP);
+            //sendText(sp, sb.get(), TextType::TIP);
             oldname = newname;
         }
     }
     return original(sp, tk);
-}*/
+}
 void mod_init(std::list<string> &modlist)
 {
     printf("[LAND] loaded! " BDL_TAG "\n");
